@@ -1,0 +1,71 @@
+{
+  "header": {
+    "Name": "params-mismatch",
+    "Summary": "Top N largest files under a directory.",
+    "Effects": "read",
+    "Example": [
+      "--dir",
+      "."
+    ],
+    "Matches": null,
+    "Returns": {
+      "Keys": [
+        "files"
+      ],
+      "Doc": ""
+    },
+    "Params": [
+      {
+        "Name": "dir",
+        "Type": "path",
+        "Required": true,
+        "Default": null,
+        "Help": "",
+        "Min": null,
+        "Max": null,
+        "Values": null
+      },
+      {
+        "Name": "depth",
+        "Type": "int",
+        "Required": false,
+        "Default": 3,
+        "Help": "",
+        "Min": null,
+        "Max": null,
+        "Values": null
+      }
+    ],
+    "Requires": null,
+    "Provenance": null,
+    "Stamp": null
+  },
+  "fences": [
+    1,
+    13,
+    -1
+  ],
+  "hash": "db444970fe8c",
+  "findings": [
+    {
+      "Code": "F007",
+      "Message": "param \"depth\" has no add_argument(\"--depth\")",
+      "Line": 13
+    },
+    {
+      "Code": "F007",
+      "Message": "add_argument(\"--limit\") is not declared in [params]",
+      "Line": 21
+    },
+    {
+      "Code": "F007",
+      "Message": "add_argument(\"--help-me\") is not declared in [params]",
+      "Line": 22
+    },
+    {
+      "Code": "F010",
+      "Message": "stdout write that is not json.dumps; send logs to stderr",
+      "Line": 27
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "error": "testdata/shell-block.sh: F001: v0 blocks are Python files ending in .py",
+  "findings": null
+}

@@ -1,0 +1,66 @@
+{
+  "header": {
+    "Name": "crlf-file",
+    "Summary": "Shape of a JSON or JSONL file: keys, row count, one sample. Never the data.",
+    "Effects": "read",
+    "Example": [
+      "--path",
+      "$FIXTURES/sample.json",
+      "--depth",
+      "1"
+    ],
+    "Matches": [
+      "json\\.loads?\\(",
+      "JSON\\.parse\\("
+    ],
+    "Returns": {
+      "Keys": [
+        "kind",
+        "keys",
+        "rows",
+        "sample",
+        "truncated"
+      ],
+      "Doc": "kind is object|array|jsonl; keys are top-level; sample is one element"
+    },
+    "Params": [
+      {
+        "Name": "path",
+        "Type": "path",
+        "Required": true,
+        "Default": null,
+        "Help": "JSON or JSONL file inside the repo",
+        "Min": null,
+        "Max": null,
+        "Values": null
+      },
+      {
+        "Name": "depth",
+        "Type": "int",
+        "Required": false,
+        "Default": 2,
+        "Help": "How deep to walk nested keys",
+        "Min": null,
+        "Max": 10,
+        "Values": null
+      }
+    ],
+    "Requires": null,
+    "Provenance": {
+      "Created": "2026-10-03",
+      "Source": "registry:crlf-file@0.1.0",
+      "Sessions": 0
+    },
+    "Stamp": {
+      "Verified": "3f9a1c2b7d4e",
+      "State": ""
+    }
+  },
+  "fences": [
+    1,
+    22,
+    20
+  ],
+  "hash": "31a386fabb0e",
+  "findings": null
+}

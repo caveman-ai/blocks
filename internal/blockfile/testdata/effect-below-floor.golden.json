@@ -1,0 +1,35 @@
+{
+  "header": {
+    "Name": "effect-below-floor",
+    "Summary": "Runs the test suite and returns pass and fail counts.",
+    "Effects": "read",
+    "Example": [
+      "--quiet"
+    ],
+    "Matches": null,
+    "Returns": {
+      "Keys": [
+        "passed",
+        "failed"
+      ],
+      "Doc": ""
+    },
+    "Params": null,
+    "Requires": null,
+    "Provenance": null,
+    "Stamp": null
+  },
+  "fences": [
+    1,
+    9,
+    -1
+  ],
+  "hash": "a449c0bd524a",
+  "findings": [
+    {
+      "Code": "F005",
+      "Message": "effects \"read\" is below the inferred floor \"exec\" (imports subprocess)",
+      "Line": 12
+    }
+  ]
+}

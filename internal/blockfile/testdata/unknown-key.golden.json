@@ -1,0 +1,51 @@
+{
+  "header": {
+    "Name": "unknown-key",
+    "Summary": "Counts lines in a file.",
+    "Effects": "read",
+    "Example": [
+      "--path",
+      "README.md"
+    ],
+    "Matches": null,
+    "Returns": {
+      "Keys": [
+        "lines"
+      ],
+      "Doc": ""
+    },
+    "Params": [
+      {
+        "Name": "path",
+        "Type": "path",
+        "Required": true,
+        "Default": null,
+        "Help": "",
+        "Min": null,
+        "Max": null,
+        "Values": null
+      }
+    ],
+    "Requires": null,
+    "Provenance": null,
+    "Stamp": null
+  },
+  "fences": [
+    0,
+    12,
+    -1
+  ],
+  "hash": "219bda49047a",
+  "findings": [
+    {
+      "Code": "F002",
+      "Message": "unknown key \"owner\"",
+      "Line": 6
+    },
+    {
+      "Code": "F002",
+      "Message": "unknown key \"params.path.hint\"",
+      "Line": 12
+    }
+  ]
+}

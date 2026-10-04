@@ -1,0 +1,4 @@
+{
+  "error": "testdata/unclosed-fence.py: F001: no block header: expected a `# /// block` ... `# ///` fence",
+  "findings": null
+}

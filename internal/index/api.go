@@ -1,6 +1,14 @@
 // Package index renders INDEX.md and the managed instruction-file section (docs/FORMAT.md).
 package index
 
+import (
+	"bytes"
+	"fmt"
+	"slices"
+	"strings"
+	"unicode/utf8"
+)
+
 // Markers bound the managed section in instruction files.
 const (
 	MarkerStart = "<!-- caveman-blocks:start -->"
@@ -40,14 +48,98 @@ const (
 // Body renders the full section body: Rules, a blank line, then one line per entry sorted by name,
 // each cut at LineWidth on a word boundary with "…". Errors when len(entries) > max or the body
 // exceeds budget bytes.
-func Body(entries []Entry, max, budget int) (string, error) { panic("index: not implemented") }
+// A line is the name padded to 14 columns, the params padded to 34, then the summary; a column that
+// overflows keeps one separating space. With no entries the body is Rules alone. No trailing newline.
+func Body(entries []Entry, max, budget int) (string, error) {
+	if len(entries) > max {
+		return "", fmt.Errorf("index has %d blocks, index_max is %d: retire %d", len(entries), max, len(entries)-max)
+	}
+	sorted := slices.Clone(entries)
+	slices.SortFunc(sorted, func(a, b Entry) int { return strings.Compare(a.Name, b.Name) })
+	body := Rules
+	if len(sorted) > 0 {
+		lines := make([]string, len(sorted))
+		for i, e := range sorted {
+			lines[i] = cut(strings.TrimRight(pad(e.Name, 14)+pad(e.Params, 34)+e.Summary, " "))
+		}
+		body += "\n\n" + strings.Join(lines, "\n")
+	}
+	if len(body) > budget {
+		return "", fmt.Errorf("index section is %d bytes, budget is %d: shorten summaries or retire blocks to cut %d bytes",
+			len(body), budget, len(body)-budget)
+	}
+	return body, nil
+}
+
+// pad right-pads s to width runes, keeping at least one trailing space.
+func pad(s string, width int) string {
+	return s + strings.Repeat(" ", max(1, width-utf8.RuneCountInString(s)))
+}
+
+// cut shortens line to LineWidth runes at the last word boundary, ending in "…".
+func cut(line string) string {
+	r := []rune(line)
+	if len(r) <= LineWidth {
+		return line
+	}
+	head := string(r[:LineWidth-1])
+	if i := strings.LastIndex(head, " "); i > 0 {
+		head = head[:i]
+	}
+	return strings.TrimRight(head, " ") + "…"
+}
 
 // Upsert returns file with body placed between the markers, replacing an existing section or
 // appending a new one after a blank line. Text outside the markers is untouched.
-func Upsert(file []byte, body string) []byte { panic("index: not implemented") }
+// The section uses the file's line ending (CRLF when the file has any). Upsert is idempotent.
+func Upsert(file []byte, body string) []byte {
+	eol := "\n"
+	if bytes.Contains(file, []byte("\r\n")) {
+		eol = "\r\n"
+	}
+	inner := eol + strings.ReplaceAll(body, "\n", eol) + eol
+	if s, e, ok := locate(file); ok {
+		out := slices.Clone(file[:s])
+		out = append(out, inner...)
+		return append(out, file[e:]...)
+	}
+	out := slices.Clone(file)
+	switch {
+	case len(out) == 0:
+	case bytes.HasSuffix(out, []byte("\n")):
+		out = append(out, eol...)
+	default:
+		out = append(out, eol+eol...)
+	}
+	return append(out, MarkerStart+inner+MarkerEnd+eol...)
+}
 
 // Section returns the current text between the markers, and false when absent.
-func Section(file []byte) (string, bool) { panic("index: not implemented") }
+// The text is LF-normalized, without the line breaks that follow the start marker and precede the
+// end marker, so Section(Upsert(f, body)) == body.
+func Section(file []byte) (string, bool) {
+	s, e, ok := locate(file)
+	if !ok {
+		return "", false
+	}
+	text := strings.ReplaceAll(string(file[s:e]), "\r\n", "\n")
+	text = strings.TrimPrefix(text, "\n")
+	return strings.TrimSuffix(text, "\n"), true
+}
+
+// locate returns the byte range strictly between the markers: the first end marker and the last
+// start marker before it, so a stray start marker earlier in the file is left alone.
+func locate(file []byte) (start, end int, ok bool) {
+	end = bytes.Index(file, []byte(MarkerEnd))
+	if end < 0 {
+		return 0, 0, false
+	}
+	start = bytes.LastIndex(file[:end], []byte(MarkerStart))
+	if start < 0 {
+		return 0, 0, false
+	}
+	return start + len(MarkerStart), end, true
+}
 
 // ImportBody is the body written to CLAUDE.md and GEMINI.md: the import line.
 const ImportBody = "@.blocks/INDEX.md"

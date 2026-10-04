@@ -1,0 +1,4 @@
+{
+  "error": "testdata/second-fence.py: F001 line 10: second block header; a file has exactly one",
+  "findings": null
+}
