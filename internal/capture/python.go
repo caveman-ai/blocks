@@ -155,8 +155,8 @@ func pathLike(c string) bool {
 	return slash > 0 && dot > slash+1 && dot < len(c)-1
 }
 
-// analyze computes the script_sha, fp, literal vector and edit flag of a Python body.
-func analyze(body string) (sha, fp string, lits []string, edit bool) {
+// analyze computes the script_sha, fp and edit flag of a Python body.
+func analyze(body string) (sha, fp string, edit bool) {
 	toks := lexPy(body)
 
 	norm := make([]byte, 0, len(body))
@@ -171,10 +171,8 @@ func analyze(body string) (sha, fp string, lits []string, edit bool) {
 		case tStr:
 			// Paths in Python are always quoted, so they reduce to S like any string: a script that
 			// switches 'a.json' for 'runs/b.json' is still the same script.
-			lits = append(lits, strContent(t.s))
 			norm = append(norm, 'S')
 		case tNum:
-			lits = append(lits, t.s)
 			norm = append(norm, 'N')
 		default:
 			norm = append(norm, t.s...)
@@ -231,7 +229,43 @@ func analyze(body string) (sha, fp string, lits []string, edit bool) {
 		h := sha256.Sum256([]byte(b.String()))
 		fp = hex.EncodeToString(h[:6])
 	}
-	return sha, fp, lits, isEdit(toks)
+	return sha, fp, isEdit(toks)
+}
+
+// safeLiterals is the literal vector of body: string contents and numbers in order of appearance,
+// taken from the scrubbed body. A literal that holds the scrub marker, or that sits inside or
+// contains a span Scrub replaced anywhere in the body, becomes the marker, so a secret repeated
+// outside an assignment cannot leak. Positions are kept for promote's position-wise comparison.
+func safeLiterals(body string) []string {
+	clean, spans := scrub(body)
+	var lits []string
+	for _, t := range lexPy(clean) {
+		var l string
+		switch t.kind {
+		case tStr:
+			l = strContent(t.s)
+		case tNum:
+			l = t.s
+		default:
+			continue
+		}
+		if strings.Contains(l, scrubbed) || inSpan(l, spans) {
+			l = scrubbed
+		}
+		lits = append(lits, l)
+	}
+	return lits
+}
+
+// inSpan reports a literal that contains a scrubbed span, or is a 4+ character piece of one. Shorter
+// pieces (a 3 that also occurs in a key) are too common to be a leak and are kept.
+func inSpan(l string, spans []string) bool {
+	for _, sp := range spans {
+		if len(l) >= 4 && strings.Contains(sp, l) || strings.Contains(l, sp) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseImport reads `import a.b as c, d` or `from a.b import x` at toks[j] and returns the index of

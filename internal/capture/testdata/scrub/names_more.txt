@@ -1,0 +1,5 @@
+auth = "bob:pw"; db_pwd = 'hunter2'; PASSWD=abc; credentials = "c1"; API-KEY=v9
+cfg = {"pwd": "s3cr3t", "credential": "v", "auth_token": "t", "user": "bob"}
+-- want --
+auth = "«scrubbed»"; db_pwd = '«scrubbed»'; PASSWD=«scrubbed»; credentials = "«scrubbed»"; API-KEY=«scrubbed»
+cfg = {"pwd": "«scrubbed»", "credential": "«scrubbed»", "auth_token": "«scrubbed»", "user": "bob"}

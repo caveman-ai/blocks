@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/cb/caveman-blocks hook --harness codex",
+            "command": "/opt/cb/caveman-blocks hook --harness claude",
             "timeout": 5
           }
         ]

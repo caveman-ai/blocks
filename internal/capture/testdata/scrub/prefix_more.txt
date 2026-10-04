@@ -1,0 +1,5 @@
+git clone https://oauth2:glpat-EXAMPLEexample01234567@gitlab.com/x.git; stripe(sk_live_EXAMPLE0123456789abcd, sk_test_EXAMPLE0123456789abcd, rk_live_EXAMPLE0123456789abcd)
+slack(xapp-1-A0123456789-0123456789-abcdef) gh(github_pat_11EXAMPLE0123456789_abcdefghijklmnopqrstuvwxyz)
+-- want --
+git clone https://«scrubbed»@gitlab.com/x.git; stripe(«scrubbed», «scrubbed», «scrubbed»)
+slack(«scrubbed») gh(«scrubbed»)

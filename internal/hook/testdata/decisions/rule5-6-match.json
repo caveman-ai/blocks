@@ -1,7 +1,7 @@
 [
   {
     "name": "body matching a block hints with its call and skips capture",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "matches": ["json\\.loads?\\("], "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "matches": ["json\\.loads?\\("], "hint": "caveman-blocks run json-peek --path <path>"}]},
     "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s1"},
     "stub": {"extract": {"body": "import json\nd = json.load(open('a.json'))\n", "lines": 14, "fp": "aaaaaaaaaaaa", "script_sha": "x"}},
     "expect": {"hint": "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>",
@@ -10,8 +10,8 @@
   {
     "name": "several hits: the longest match wins",
     "cfg": {"repo_root": "/repo", "blocks": [
-      {"name": "a-short", "effects": "read", "installed": true, "matches": ["json"], "hint": "caveman-blocks run a-short"},
-      {"name": "z-long", "effects": "read", "installed": true, "matches": ["json\\.load\\(open"], "hint": "caveman-blocks run z-long --path <path>"}]},
+      {"name": "a-short", "effects": "read", "matches": ["json"], "hint": "caveman-blocks run a-short"},
+      {"name": "z-long", "effects": "read", "matches": ["json\\.load\\(open"], "hint": "caveman-blocks run z-long --path <path>"}]},
     "input": {"command": "python3 -c ...", "cwd": "/repo", "session": "s1"},
     "stub": {"extract": {"body": "import json; json.load(open('a'))", "lines": 1}},
     "expect": {"hint": "Blocks: z-long covers this. Next time: caveman-blocks run z-long --path <path>",
@@ -20,8 +20,8 @@
   {
     "name": "equal match length: the name breaks the tie",
     "cfg": {"repo_root": "/repo", "blocks": [
-      {"name": "zeta", "effects": "read", "installed": true, "matches": ["Counter"], "hint": "caveman-blocks run zeta"},
-      {"name": "alpha", "effects": "read", "installed": true, "matches": ["Counter"], "hint": "caveman-blocks run alpha"}]},
+      {"name": "zeta", "effects": "read", "matches": ["Counter"], "hint": "caveman-blocks run zeta"},
+      {"name": "alpha", "effects": "read", "matches": ["Counter"], "hint": "caveman-blocks run alpha"}]},
     "input": {"command": "python3 -c ...", "cwd": "/repo", "session": "s1"},
     "stub": {"extract": {"body": "from collections import Counter", "lines": 1}},
     "expect": {"hint": "Blocks: alpha covers this. Next time: caveman-blocks run alpha", "events": [{"kind": "hint", "block": "alpha"}]}
@@ -29,8 +29,8 @@
   {
     "name": "an edit only considers write-workspace blocks",
     "cfg": {"repo_root": "/repo", "blocks": [
-      {"name": "a-reader", "effects": "read", "installed": true, "matches": ["re\\.sub\\(.*\\)"], "hint": "caveman-blocks run a-reader"},
-      {"name": "replace", "effects": "write-workspace", "installed": true, "matches": ["re\\.sub"], "hint": "caveman-blocks run replace --path <path> --pattern <str>"}]},
+      {"name": "a-reader", "effects": "read", "matches": ["re\\.sub\\(.*\\)"], "hint": "caveman-blocks run a-reader"},
+      {"name": "replace", "effects": "write-workspace", "matches": ["re\\.sub"], "hint": "caveman-blocks run replace --path <path> --pattern <str>"}]},
     "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s1"},
     "stub": {"extract": {"body": "import re\np='a.py'\ns=open(p).read()\nopen(p,'w').write(re.sub('a','b',s))\n", "lines": 4, "edit": true, "fp": "cccccccccccc"}},
     "expect": {"hint": "Blocks: replace covers this. Next time: caveman-blocks run replace --path <path> --pattern <str>",
@@ -38,21 +38,21 @@
   },
   {
     "name": "an edit matching only a read block gets no hint and is never captured",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "matches": ["json"], "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "matches": ["json"], "hint": "caveman-blocks run json-peek --path <path>"}]},
     "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s1"},
     "stub": {"extract": {"body": "import json\n# rewrite a.json in place\n", "lines": 25, "edit": true, "fp": "dddddddddddd"}},
     "expect": {"hint": "", "events": null}
   },
   {
-    "name": "a known but uninstalled block never matches a body",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": false, "matches": ["json"], "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "name": "a block not in cfg.Blocks (not indexed) never matches a body",
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "loc", "effects": "read", "matches": ["os\\.walk"]}]},
     "input": {"command": "python3 -c ...", "cwd": "/repo", "session": "s1"},
     "stub": {"extract": {"body": "import json", "lines": 1}},
     "expect": {"hint": "", "events": null}
   },
   {
     "name": "a block without a rendered call hint falls back to its bare run line",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "loc", "effects": "read", "installed": true, "matches": ["os\\.walk"]}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "loc", "effects": "read", "matches": ["os\\.walk"]}]},
     "input": {"command": "python3 -c ...", "cwd": "/repo", "session": "s1"},
     "stub": {"extract": {"body": "import os\nfor r, d, f in os.walk('.'): pass", "lines": 2}},
     "expect": {"hint": "Blocks: loc covers this. Next time: caveman-blocks run loc", "events": [{"kind": "hint", "block": "loc"}]}

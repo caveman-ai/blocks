@@ -98,41 +98,41 @@ func TestFingerprint(t *testing.T) {
 	}
 
 	// The documented formula, computed by hand.
-	_, fp, _, _ := analyze("import json\nimport os.path\nfrom collections import Counter\nprint(json.load(open('x')))\nprint(1)\n")
+	_, fp, _ := analyze("import json\nimport os.path\nfrom collections import Counter\nprint(json.load(open('x')))\nprint(1)\n")
 	if want := hex12("py|collections,json,os|json.load:1,open:1,print:2"); fp != want {
 		t.Errorf("fp = %s, want %s", fp, want)
 	}
 
 	// Call names match whole dotted segments, not substrings, and never inside strings or comments.
-	_, fp1, _, _ := analyze("x = json.loads(s)  # json.load\nprint('open')\n")
+	_, fp1, _ := analyze("x = json.loads(s)  # json.load\nprint('open')\n")
 	if want := hex12("py||json.loads:1,print:1"); fp1 != want {
 		t.Errorf("fp = %s, want %s", fp1, want)
 	}
-	_, fp2, _, _ := analyze("import glob\nfor f in glob.glob('*.py'): print(f)\nprint(1)\nprint(2)\n")
+	_, fp2, _ := analyze("import glob\nfor f in glob.glob('*.py'): print(f)\nprint(1)\nprint(2)\n")
 	if want := hex12("py|glob|glob:2,print:3+"); fp2 != want {
 		t.Errorf("fp = %s, want %s", fp2, want)
 	}
 
 	// No imports and no table hits: no fp.
-	if _, fp, _, _ := analyze("x = 1 + 2\ny = x * 3\n"); fp != "" {
+	if _, fp, _ := analyze("x = 1 + 2\ny = x * 3\n"); fp != "" {
 		t.Errorf("featureless body fp = %q", fp)
 	}
 }
 
 func TestScriptSHA(t *testing.T) {
-	a, _, _, _ := analyze("import json\nd = json.load(open('a.json'))\nprint(d['x'], 3)\n")
-	b, _, _, _ := analyze("import json\nd   =   json.load(open(\"b/c.json\"))   # read\n\nprint(d['y'], 7)\n")
-	c, _, _, _ := analyze("import json\nd = json.load(open('a.json'))\nprint(d['x'] + 3)\n")
+	a, _, _ := analyze("import json\nd = json.load(open('a.json'))\nprint(d['x'], 3)\n")
+	b, _, _ := analyze("import json\nd   =   json.load(open(\"b/c.json\"))   # read\n\nprint(d['y'], 7)\n")
+	c, _, _ := analyze("import json\nd = json.load(open('a.json'))\nprint(d['x'] + 3)\n")
 	if a != b {
 		t.Errorf("literal, comment and whitespace changes should keep script_sha")
 	}
 	if a == c {
 		t.Errorf("code change should change script_sha")
 	}
-	_, fpA, _, _ := analyze("import json\nprint(json.load(open('a.json'))['x'])\n")
-	_, fpB, _, _ := analyze("import json\nd = json.load(open('zzz.json'))\nk = 'y'\nprint(d[k])\n")
-	shaA, _, _, _ := analyze("import json\nprint(json.load(open('a.json'))['x'])\n")
-	shaB, _, _, _ := analyze("import json\nd = json.load(open('zzz.json'))\nk = 'y'\nprint(d[k])\n")
+	_, fpA, _ := analyze("import json\nprint(json.load(open('a.json'))['x'])\n")
+	_, fpB, _ := analyze("import json\nd = json.load(open('zzz.json'))\nk = 'y'\nprint(d[k])\n")
+	shaA, _, _ := analyze("import json\nprint(json.load(open('a.json'))['x'])\n")
+	shaB, _, _ := analyze("import json\nd = json.load(open('zzz.json'))\nk = 'y'\nprint(d[k])\n")
 	if fpA != fpB || shaA == shaB {
 		t.Errorf("same shape, different script: want equal fp (%s, %s) and different script_sha", fpA, fpB)
 	}
@@ -170,8 +170,11 @@ func TestStructuredDump(t *testing.T) {
 	}{
 		{"cat package.json", "json", true},
 		{"cat ~/.claude/projects/x/session.jsonl", "jsonl", true},
-		{"cd logs && tail -n 200 server.log", "log", true},
-		{"head -50 data.csv", "csv", true},
+		{"cd logs && cat -n server.log", "log", true},
+		{"more server.log", "log", true},
+		{"cd logs && tail -n 200 server.log", "", false},
+		{"head -50 data.json", "", false},
+		{"cat data.csv", "", false},
 		{"less events.ndjson", "ndjson", true},
 		{"bat Results.JSON", "json", true},
 		{"cat big.jsonl | sort", "jsonl", true},
@@ -205,6 +208,25 @@ func BenchmarkExtract(b *testing.B) {
 	for b.Loop() {
 		if _, ok := Extract(typicalCmd); !ok {
 			b.Fatal("no script")
+		}
+	}
+}
+
+// TestLiteralsScrubbed pins F3: a secret assigned in the body, or repeated elsewhere in it, never
+// reaches the literal vector; positions are kept.
+func TestLiteralsScrubbed(t *testing.T) {
+	body := "import json\nhexkey = \"abcd1234efgh5678\"\nh = {\"X-Api-Key\": \"zzzz9999yyyy8888\"}\nprint(\"abcd1234efgh5678\", 'out.json', 3)\n"
+	s, ok := Extract("python3 - <<'EOF'\n" + body + "EOF")
+	if !ok {
+		t.Fatal("no script")
+	}
+	want := []string{scrubbed, "X-Api-Key", scrubbed, scrubbed, "out.json", "3"}
+	if strings.Join(s.Literals, "|") != strings.Join(want, "|") {
+		t.Errorf("literals = %q, want %q", s.Literals, want)
+	}
+	for _, l := range s.Literals {
+		if strings.Contains(l, "abcd1234") || strings.Contains(l, "zzzz9999") {
+			t.Errorf("secret in literals: %q", s.Literals)
 		}
 	}
 }

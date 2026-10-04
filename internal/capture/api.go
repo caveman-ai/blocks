@@ -15,7 +15,7 @@ type Script struct {
 	Edit      bool     // reads a file, replaces, writes the same path
 	ScriptSHA string   // sha256 hex of the literal-stripped body
 	FP        string   // 12 hex shape fingerprint, "" when the body has no features
-	Literals  []string // string/number/path literals in order of appearance
+	Literals  []string // string/number literals in order of appearance, scrubbed (safeLiterals)
 }
 
 // Extract finds an inline Python script in command: a heredoc to python/python3, or python -c.
@@ -26,7 +26,8 @@ func Extract(command string) (s Script, ok bool) {
 		return Script{}, false
 	}
 	s = Script{Lang: "py", Body: body, Lines: strings.Count(strings.TrimRight(body, "\n"), "\n") + 1}
-	s.ScriptSHA, s.FP, s.Literals, s.Edit = analyze(body)
+	s.ScriptSHA, s.FP, s.Edit = analyze(body)
+	s.Literals = safeLiterals(body)
 	return s, true
 }
 
@@ -142,8 +143,9 @@ func validBlockName(n string) bool {
 	return true
 }
 
-// StructuredDump reports whether command dumps a structured file whole (cat/head/tail/less of
-// .json/.jsonl/.ndjson/.log/.csv) and returns the extension without the dot.
+// StructuredDump reports whether command dumps a structured file whole (cat/less/more/bat of
+// .json/.jsonl/.ndjson/.log) and returns the extension without the dot. head and tail already limit
+// their output, and so does a piped limiter.
 func StructuredDump(command string) (ext string, ok bool) {
 	cmds, k := leadCommand(command, 0)
 	if k < 0 {
@@ -154,12 +156,8 @@ func StructuredDump(command string) (ext string, ok bool) {
 		return "", false
 	}
 	var files []string
-	for j := 1; j < len(w); j++ {
-		switch a := w[j]; {
-		case (a == "-n" || a == "-c") && (w[0] == "head" || w[0] == "tail"):
-			j++
-		case strings.HasPrefix(a, "-"):
-		default:
+	for _, a := range w[1:] {
+		if !strings.HasPrefix(a, "-") {
 			files = append(files, a)
 		}
 	}
@@ -179,8 +177,8 @@ func StructuredDump(command string) (ext string, ok bool) {
 }
 
 var (
-	dumpers  = map[string]bool{"cat": true, "head": true, "tail": true, "less": true, "more": true, "bat": true}
-	dumpExts = map[string]bool{"json": true, "jsonl": true, "ndjson": true, "log": true, "csv": true}
+	dumpers  = map[string]bool{"cat": true, "less": true, "more": true, "bat": true}
+	dumpExts = map[string]bool{"json": true, "jsonl": true, "ndjson": true, "log": true}
 	limiters = map[string]bool{"head": true, "tail": true, "jq": true, "wc": true, "grep": true}
 )
 

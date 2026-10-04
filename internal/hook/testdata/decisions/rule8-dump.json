@@ -1,7 +1,7 @@
 [
   {
     "name": "cat of a json file names installed json-peek",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "hint": "caveman-blocks run json-peek --path <path>"}]},
     "input": {"command": "cat data/a.json", "cwd": "/repo", "session": "s1"},
     "stub": {"dump": "json"},
     "expect": {"hint": "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>", "events": [{"kind": "hint", "block": "json-peek"}]}
@@ -9,17 +9,16 @@
   {
     "name": "jsonl prefers jsonl-stats when both are installed",
     "cfg": {"repo_root": "/repo", "blocks": [
-      {"name": "json-peek", "effects": "read", "installed": true, "hint": "caveman-blocks run json-peek --path <path>"},
-      {"name": "jsonl-stats", "effects": "read", "installed": true, "hint": "caveman-blocks run jsonl-stats --path <path>"}]},
-    "input": {"command": "head -n 50 events.jsonl", "cwd": "/repo", "session": "s1"},
+      {"name": "json-peek", "effects": "read", "hint": "caveman-blocks run json-peek --path <path>"},
+      {"name": "jsonl-stats", "effects": "read", "hint": "caveman-blocks run jsonl-stats --path <path>"}]},
+    "input": {"command": "cat events.jsonl", "cwd": "/repo", "session": "s1"},
     "stub": {"dump": "jsonl"},
     "expect": {"hint": "Blocks: jsonl-stats covers this. Next time: caveman-blocks run jsonl-stats --path <path>", "events": [{"kind": "hint", "block": "jsonl-stats"}]}
   },
   {
     "name": "ndjson falls back to json-peek when it is the only one installed",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "hint": "caveman-blocks run json-peek --path <path>"},
-                                             {"name": "jsonl-stats", "effects": "read", "installed": false}]},
-    "input": {"command": "tail events.ndjson", "cwd": "/repo", "session": "s1"},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "input": {"command": "less events.ndjson", "cwd": "/repo", "session": "s1"},
     "stub": {"dump": "ndjson"},
     "expect": {"hint": "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>", "events": [{"kind": "hint", "block": "json-peek"}]}
   },
@@ -39,24 +38,24 @@
     "expect": {"hint": "", "events": null}
   },
   {
-    "name": "csv is covered by jsonl-stats",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "jsonl-stats", "effects": "read", "installed": true, "hint": "caveman-blocks run jsonl-stats --path <path>"}]},
+    "name": "an extension with no fitting block gives no hint",
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "jsonl-stats", "effects": "read", "hint": "caveman-blocks run jsonl-stats --path <path>"}]},
     "input": {"command": "cat sales.csv", "cwd": "/repo", "session": "s1"},
     "stub": {"dump": "csv"},
-    "expect": {"hint": "Blocks: jsonl-stats covers this. Next time: caveman-blocks run jsonl-stats --path <path>", "events": [{"kind": "hint", "block": "jsonl-stats"}]}
+    "expect": {"hint": "", "events": null}
   },
   {
     "name": "a match hint wins over a dump hint; hints do not stack",
     "cfg": {"repo_root": "/repo", "blocks": [
-      {"name": "json-peek", "effects": "read", "installed": true, "hint": "caveman-blocks run json-peek --path <path>"},
-      {"name": "loc", "effects": "read", "installed": true, "matches": ["os\\.walk"], "hint": "caveman-blocks run loc"}]},
+      {"name": "json-peek", "effects": "read", "hint": "caveman-blocks run json-peek --path <path>"},
+      {"name": "loc", "effects": "read", "matches": ["os\\.walk"], "hint": "caveman-blocks run loc"}]},
     "input": {"command": "cat a.json; python3 -c 'import os; os.walk(1)'", "cwd": "/repo", "session": "s1"},
     "stub": {"dump": "json", "extract": {"body": "import os; os.walk(1)", "lines": 1}},
     "expect": {"hint": "Blocks: loc covers this. Next time: caveman-blocks run loc", "events": [{"kind": "hint", "block": "loc"}]}
   },
   {
     "name": "a short unmatched script still lets the dump rule hint",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "hint": "caveman-blocks run json-peek --path <path>"}]},
     "input": {"command": "cat a.json && python3 -c 'print(1)'", "cwd": "/repo", "session": "s1"},
     "stub": {"dump": "json", "extract": {"body": "print(1)", "lines": 1}},
     "expect": {"hint": "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>", "events": [{"kind": "hint", "block": "json-peek"}]}

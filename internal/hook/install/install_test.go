@@ -163,3 +163,51 @@ func TestInstallFollowsSymlinkAndQuotes(t *testing.T) {
 		t.Fatalf("after uninstall:\n%s", b)
 	}
 }
+
+// TestMarker pins which commands uninstall treats as ours: only what entries writes.
+func TestMarker(t *testing.T) {
+	ours := []string{
+		"/opt/cb/caveman-blocks hook --harness claude",
+		"/old/path/caveman-blocks hook --harness codex",
+		"/caveman-blocks hook --harness cursor --phase post",
+		"'/Users/Jane Doe/bin/caveman-blocks' hook --harness cursor --phase pre",
+		"'/Users/O'\\''Brien/bin/caveman-blocks' hook --harness claude",
+		`C:\Users\me\caveman-blocks.exe hook --harness claude`,
+		`'C:\Program Files\cb\caveman-blocks.exe' hook --harness claude`,
+	}
+	notOurs := []string{
+		"caveman-blocks hook --harness claude",                     // relative: a user's own entry
+		"~/bin/caveman-blocks hook --harness claude",               // not absolute
+		"/opt/cb/not-caveman-blocks hook --harness claude",         // another binary
+		"/opt/cb/caveman-blocks hook",                              // no harness
+		"/opt/cb/caveman-blocks hook --harness claude && say done", // a wrapper
+		"/opt/cb/caveman-blocks hook --harness claude --phase mid",
+		"/opt/cb/caveman-blocks.exe hook --harness claude", // .exe only after a backslash
+		"bash -c '/opt/cb/caveman-blocks hook --harness claude'",
+		"/opt/cb/caveman-blocks run json-peek",
+	}
+	for _, c := range ours {
+		if !marker.MatchString(c) {
+			t.Errorf("not recognised as ours: %s", c)
+		}
+	}
+	for _, c := range notOurs {
+		if marker.MatchString(c) {
+			t.Errorf("taken as ours: %s", c)
+		}
+	}
+}
+
+// TestUninstallKeepsLookalikes installs next to user entries that mention caveman-blocks and checks
+// uninstall leaves them.
+func TestUninstallKeepsLookalikes(t *testing.T) {
+	f, _ := For("cursor-hooks")
+	path := filepath.Join(t.TempDir(), "hooks.json")
+	others := "{\n  \"version\": 1,\n  \"hooks\": {\n    \"beforeShellExecution\": [\n      {\n        \"command\": \"caveman-blocks hook --harness cursor --phase pre\"\n      },\n      {\n        \"command\": \"/opt/cb/caveman-blocks hook --harness cursor --phase pre | tee /tmp/log\"\n      }\n    ]\n  }\n}\n"
+	os.WriteFile(path, []byte(others), 0o600)
+	c, err := f.Install(path, bin)
+	mustChange(t, true, c, err)
+	c, err = f.Uninstall(path)
+	mustChange(t, true, c, err)
+	expect(t, path, []byte(others))
+}
