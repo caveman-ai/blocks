@@ -24,11 +24,10 @@ caveman-blocks/
     blockfile/               parse, write, validate, lint      (pure; golden tests)
     index/                   INDEX.md and managed-section rendering, freshness check (pure)
     hook/                    decision engine                   (pure; golden decision tables)
-      adapter/claude/        stdin/stdout translation + install/uninstall for each harness
-      adapter/codex/
-      adapter/cursor/
-      adapter/copilot/
-      adapter/gemini/
+      protocol/              generic JSON request/response, versioned (pure)
+      dialect/<name>/        claude, cursor, copilot, gemini, generic: parse + render (pure; conformance fixtures)
+      profiles.toml          per-harness data: dialect, events, config path, capabilities, transcripts
+      install/               config_format writers: insert, remove, status for each config file shape
     capture/                 script extraction, edit filter, normalization, shape, candidates store
     scan/                    transcript readers (one per harness, versioned), grouping, report
     verify/                  run example at HEAD, check contract, write stamp
@@ -44,6 +43,7 @@ caveman-blocks/
     transcripts/<harness>/   scrubbed transcript samples for scan readers
     hook/                    golden decision tables: command in, decision out
   npm/                       shim package and per-platform package templates
+  integrations/<harness>/    optional plugin shims for Tier C harnesses (Amp, OpenCode, Cline), separately versioned
   docs/                      see README
   .github/workflows/         ci.yml, release.yml
   Makefile                   test, lint, e2e, bench-hook, build

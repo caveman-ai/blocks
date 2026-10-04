@@ -38,6 +38,7 @@ Status: foundation. The design is written; the binary is not. Start with [docs/T
 | [docs/FORMAT.md](docs/FORMAT.md) | The block file format |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, data flow, security boundaries |
 | [docs/HOOK.md](docs/HOOK.md) | Decision engine and per-harness adapters |
+| [docs/INTEGRATION.md](docs/INTEGRATION.md) | Generic protocol, dialects, profiles: adding an agent in an afternoon |
 | [docs/AGENT-PROMOTION.md](docs/AGENT-PROMOTION.md) | How an agent promotes a candidate |
 | [docs/REPOSITORY.md](docs/REPOSITORY.md) | Repo layout and tech stack |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and gates |

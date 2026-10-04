@@ -28,7 +28,9 @@ except `add`, `update` and `diff` against the first-party registry.
 | `blockfile` | Parse and write the `# /// block` header; validate; lint rules | yes |
 | `index` | Render `INDEX.md` and the managed section in AGENTS.md / CLAUDE.md; freshness check | yes |
 | `hook` | Decision engine: shell command in, decision out (allow, hint, deny, rewrite) | yes |
-| `hook/adapter/<agent>` | Translate each harness's stdin/stdout contract to the engine; install and uninstall | no |
+| `hook/dialect/<name>` | Parse and render one harness JSON shape to the generic protocol | yes |
+| `hook/profiles.toml` | Per-harness data: events, config path, capabilities, transcripts | data |
+| `hook/install` | Insert and remove our entry in each config file shape | no |
 | `capture` | Script extraction from a shell command, edit-script filter, shape fingerprint, candidates store | mostly |
 | `scan` | Transcript readers per agent; grouping by shape; report | mostly |
 | `verify` | Run a block's example at HEAD, check the contract, write the stamp | no |

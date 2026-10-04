@@ -63,6 +63,8 @@ rather than re-evaluating.
 
 ## Adapters
 
+Adapters are dialect plus profile; see [INTEGRATION.md](INTEGRATION.md) for how the layers fit and how to add a harness.
+
 | Harness | Pre-run event, matcher | Deny | Hint | Post-run event (hint only) | User-level config | Notes |
 |---|---|---|---|---|---|---|
 | Claude Code | `PreToolUse`, `"matcher": "Bash"` | `hookSpecificOutput.permissionDecision: "deny"` + `permissionDecisionReason` | `hookSpecificOutput.additionalContext` on allow | not needed | `~/.claude/settings.json` | Hooks wait for workspace trust in interactive sessions. Command at `tool_input.command`. |
