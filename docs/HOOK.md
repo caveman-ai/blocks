@@ -73,6 +73,7 @@ out/<id>.log            full block outputs written by the runner
 stats.jsonl             counted events
 hook.log                internal errors, rate limited to one line per minute
 cache/                  per-call decisions for dedupe and post-run replay
+hinted/                 per-shape UTC day of the last promote hint
 ```
 
 The runner prunes `out/` entries older than 7 days and `cache/` entries older than 1 hour, at most once
@@ -82,9 +83,15 @@ script is cut at 16 KiB.
 Files are opened with `O_APPEND|O_NOFOLLOW` and created `0600`. A cloned repository therefore cannot
 point the hook at a file of its choosing: the hook only reads `.blocks/`, and it refuses to read through
 a symlink there. The scripts stored as sightings are scrubbed first with a golden-tested list: URL
-userinfo, `Authorization` and `Cookie` header values, assignments to names containing `KEY`, `TOKEN`,
-`SECRET`, `PASSWORD`, known token prefixes (`sk-`, `ghp_`, `xox`, `AKIA`), and any token over 32
-characters with high entropy. Scrubbed spans are replaced by `«scrubbed»`.
+userinfo, `Authorization` and `Cookie` header values including curl `-H`/`--header` forms, assignments to
+names containing `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PWD`, `CREDENTIAL`, `AUTH` (as a word or
+before a separator), known token prefixes (`sk-`, `sk_live_`, `sk_test_`, `rk_live_`, `ghp_`, `gho_`, `ghu_`,
+`ghs_`, `ghr_`, `github_pat_`, `glpat-`, `xox[abprs]-`, `xapp-`, `AKIA`, `AIza`), hex runs of 32+ characters
+other than exactly 40 or 64 (git and SHA-256 digests), and any token of 32+ characters with high entropy,
+where a slashed token counts as a path only if a segment has a dot or is a short lowercase word. Every
+later repeat of a scrubbed secret of 8+ characters is scrubbed too. Scrubbed spans are replaced by
+`«scrubbed»`. The literals vector stored with a sighting is derived from the scrubbed body, so a secret
+never reaches a promotion brief.
 
 ## Failure policy
 

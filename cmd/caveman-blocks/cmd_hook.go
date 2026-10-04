@@ -122,7 +122,7 @@ func hookAnswer(harness, phase string, stdin []byte, now func() time.Time) (out 
 	deps.Log = func(err error) { hookLog(stateDir, err, now()) }
 	dec := hook.Decide(cfg, hook.Input{Phase: req.Phase, Command: req.Command, Cwd: req.Cwd, Session: req.Session, CallID: req.CallID}, deps)
 	for _, e := range dec.Events {
-		if err := stats.Append(stateDir, stats.Event{TS: e.TS, Session: e.Session, Kind: e.Kind, Block: e.Block, FP: e.FP, OK: e.OK}); err != nil {
+		if err := stats.Append(stateDir, stats.Event{TS: e.TS, Session: e.Session, Kind: e.Kind, Block: e.Block, FP: e.FP, OK: e.OK, Lines: e.Lines}); err != nil {
 			hookLog(stateDir, err, now())
 		}
 	}
