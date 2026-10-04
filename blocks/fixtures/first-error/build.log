@@ -1,0 +1,13 @@
+[12:00:01] resolving dependencies
+[12:00:02] 214 packages up to date
+[12:00:03] compiling module core
+[12:00:05] compiling module api
+[12:00:06] compiling module web
+[12:00:07] warning: unused variable `retries` in api/client.rs:88
+[12:00:08] linking core
+[12:00:09] api/handlers.go:41:12: error: undefined: SessionStore
+[12:00:09] api/handlers.go:57:3: error: cannot use ctx (variable of type context.Context) as string value
+[12:00:10] compiling module worker
+[12:00:11] worker/queue.go:19:2: error: imported and not used: "time"
+[12:00:12] build failed: 3 errors
+[12:00:12] FAIL
