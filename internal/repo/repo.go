@@ -116,7 +116,9 @@ func LoadConfigAt(root, ref string) (Config, error) {
 	if !strings.HasPrefix(entry, "100644 blob ") && !strings.HasPrefix(entry, "100755 blob ") {
 		return Config{}, fmt.Errorf(".blocks/config.toml at %s: not a regular file", ref)
 	}
-	data, err := Git(root, "show", ref+":.blocks/config.toml")
+	// "./" makes git resolve the path against root (git -C root), not the top level, so a .blocks/
+	// in a monorepo subdirectory reads its own policy.
+	data, err := Git(root, "show", ref+":./.blocks/config.toml")
 	if err != nil {
 		return Config{}, fmt.Errorf("read policy at %s: %w", ref, err)
 	}
@@ -206,11 +208,12 @@ func MergeBase(root, branch string) (string, error) {
 	return "", err
 }
 
-// InstructionFiles lists which of AGENTS.md, CLAUDE.md and GEMINI.md exist at root, in that order.
+// InstructionFiles lists which of AGENTS.md, CLAUDE.md and GEMINI.md exist at root as regular
+// files, in that order. A symlink counts as absent, so sync never writes through one.
 func InstructionFiles(root string) []string {
 	var found []string
 	for _, name := range []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"} {
-		if _, err := os.Stat(filepath.Join(root, name)); err == nil {
+		if fi, err := os.Lstat(filepath.Join(root, name)); err == nil && fi.Mode().IsRegular() {
 			found = append(found, name)
 		}
 	}
@@ -246,7 +249,7 @@ func InstallBinary(src, version string) (path string, changed bool, err error) {
 		return "", false, errors.New("no home directory")
 	}
 	path = filepath.Join(home, "caveman-blocks")
-	if installedVersion(path) == version {
+	if InstalledVersion(path) == version {
 		return path, false, nil
 	}
 	if err := os.MkdirAll(home, 0o755); err != nil {
@@ -279,11 +282,13 @@ func InstallBinary(src, version string) (path string, changed bool, err error) {
 	return path, true, nil
 }
 
-// installedVersion runs `<bin> version` and returns its last word, or "" when it cannot run.
-func installedVersion(bin string) string {
+// InstalledVersion runs `<bin> version` and returns its last word, or "" when it cannot run.
+func InstalledVersion(bin string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, bin, "version").Output()
+	cmd := exec.CommandContext(ctx, bin, "version")
+	cmd.Stderr = io.Discard
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
@@ -309,14 +314,32 @@ func ListBlocks(root string) ([]string, error) {
 	return out, nil
 }
 
-// FixtureFiles reads .blocks/fixtures/<name>/** as slash-separated relpath → content. No directory
-// means an empty map. A symlink anywhere under it is an error.
+// FixtureMax is the most fixture bytes one block may have (docs/FORMAT.md, calling convention).
+const FixtureMax = 64 << 10
+
+// ErrFixturesTooLarge is returned, wrapped, when a block's fixtures exceed FixtureMax. Such a block
+// is not indexed.
+var ErrFixturesTooLarge = errors.New("fixtures over 64 KiB")
+
+// FixtureFiles reads .blocks/fixtures/<name>/** with ReadFixtureDir. A symlinked .blocks/fixtures or
+// .blocks/fixtures/<name> is an error.
 func FixtureFiles(root, name string) (map[string][]byte, error) {
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
 		return nil, fmt.Errorf("invalid block name %q", name)
 	}
-	dir := filepath.Join(root, ".blocks", "fixtures", name)
+	dir, err := SafePath(root, ".blocks/fixtures/"+name)
+	if err != nil {
+		return nil, err
+	}
+	return ReadFixtureDir(dir)
+}
+
+// ReadFixtureDir reads dir/** as slash-separated relpath → content. No directory means an empty map.
+// A symlink anywhere under it, dir included, is an error; other non-regular files (FIFOs, devices)
+// are skipped, so reading never blocks. Over FixtureMax bytes in total is ErrFixturesTooLarge.
+func ReadFixtureDir(dir string) (map[string][]byte, error) {
 	files := map[string][]byte{}
+	total := int64(0)
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if p == dir && errors.Is(err, fs.ErrNotExist) {
@@ -327,12 +350,20 @@ func FixtureFiles(root, name string) (map[string][]byte, error) {
 		if d.Type()&fs.ModeSymlink != 0 {
 			return fmt.Errorf("%s: symlink in fixtures", p)
 		}
-		if d.IsDir() {
+		if !d.Type().IsRegular() {
 			return nil
 		}
-		data, err := os.ReadFile(p)
+		f, err := os.OpenFile(p, os.O_RDONLY|NoFollow, 0)
 		if err != nil {
 			return err
+		}
+		data, err := io.ReadAll(io.LimitReader(f, FixtureMax-total+1))
+		f.Close()
+		if err != nil {
+			return err
+		}
+		if total += int64(len(data)); total > FixtureMax {
+			return fmt.Errorf("%s: %w", dir, ErrFixturesTooLarge)
 		}
 		rel, err := filepath.Rel(dir, p)
 		if err != nil {

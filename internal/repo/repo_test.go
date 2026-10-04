@@ -249,7 +249,7 @@ func TestInstallBinary(t *testing.T) {
 	if _, changed, err = InstallBinary(src, "1.2.4"); err != nil || !changed {
 		t.Errorf("new version: changed=%v err=%v", changed, err)
 	}
-	if got := installedVersion(path); got != "1.2.4" {
+	if got := InstalledVersion(path); got != "1.2.4" {
 		t.Errorf("installed version %q", got)
 	}
 }
@@ -286,5 +286,22 @@ func TestListBlocksAndFixtures(t *testing.T) {
 	}
 	if _, err := FixtureFiles(root, "a"); err == nil {
 		t.Error("symlinked fixture: no error")
+	}
+}
+
+// TestLoadConfigAtSubdir: a .blocks/ in a monorepo subdirectory reads its own committed policy,
+// not one at the top level.
+func TestLoadConfigAtSubdir(t *testing.T) {
+	top := gitRepo(t)
+	write(t, filepath.Join(top, ".blocks", "config.toml"), "index_max = 3\n")
+	sub := filepath.Join(top, "svc")
+	write(t, filepath.Join(sub, ".blocks", "config.toml"), "index_max = 7\nallow_effects = [\"network\"]\n")
+	commit(t, top, "configs")
+	c, err := LoadConfigAt(sub, "HEAD")
+	if err != nil || c.IndexMax != 7 || len(c.AllowEffects) != 1 {
+		t.Errorf("subdir policy = %+v, %v", c, err)
+	}
+	if c, err := LoadConfigAt(top, "HEAD"); err != nil || c.IndexMax != 3 {
+		t.Errorf("top policy = %+v, %v", c, err)
 	}
 }

@@ -1,14 +1,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
 	"github.com/JuliusBrussee/caveman-blocks/internal/runner"
@@ -36,7 +32,7 @@ func doctorCmd() *cobra.Command {
 				report(true, "refreshed the hook's copy at %s to %s", p, version)
 			}
 			copyPath := filepath.Join(repo.BinaryHome(), "caveman-blocks")
-			if v := binaryVersion(copyPath); v == "" {
+			if v := repo.InstalledVersion(copyPath); v == "" {
 				report(false, "no hook binary at %s (run caveman-blocks hooks install)", copyPath)
 			} else {
 				report(v == version, "hook binary %s, version %s", copyPath, v)
@@ -56,10 +52,9 @@ func doctorCmd() *cobra.Command {
 			}
 
 			if py, err := runner.Python(); err != nil {
-				report(false, "no python3 or python on PATH; blocks cannot run")
+				report(false, "%s; blocks cannot run", err)
 			} else {
-				v := pythonVersion(py)
-				report(v != "" && !oldPython(v), "python %s (%s); blocks need 3.10 or later", v, py)
+				report(true, "python %s, 3.10 or later", py)
 			}
 
 			wd, _ := os.Getwd()
@@ -113,36 +108,4 @@ func either(cond bool, yes, no string) string {
 		return yes
 	}
 	return no
-}
-
-// binaryVersion runs `<bin> version` and returns its last word, or "" when it cannot run.
-func binaryVersion(bin string) string {
-	return lastWord(bin, "version")
-}
-
-func pythonVersion(py string) string { return lastWord(py, "--version") }
-
-func lastWord(bin, arg string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, arg)
-	cmd.Stderr = io.Discard
-	b, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	f := strings.Fields(string(b))
-	if len(f) == 0 {
-		return ""
-	}
-	return f[len(f)-1]
-}
-
-// oldPython reports a 3.x version below 3.10, or a major version below 3.
-func oldPython(v string) bool {
-	var major, minor int
-	if _, err := fmt.Sscanf(v, "%d.%d", &major, &minor); err != nil {
-		return true
-	}
-	return major < 3 || major == 3 && minor < 10
 }

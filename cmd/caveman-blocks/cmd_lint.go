@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
+	"github.com/JuliusBrussee/caveman-blocks/internal/registry"
 	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
 	"github.com/spf13/cobra"
 )
@@ -97,5 +98,12 @@ func lintFile(path string, opts blockfile.LintOptions) []blockfile.Finding {
 		}
 		return []blockfile.Finding{{Code: "F001", Message: err.Error()}}
 	}
-	return blockfile.Lint(b, opts)
+	findings := blockfile.Lint(b, opts)
+	// Fixtures sit beside the block: .blocks/fixtures/<name> or, first-party, blocks/fixtures/<name>.
+	if registry.ValidName(b.Header.Name) {
+		if _, err := repo.ReadFixtureDir(filepath.Join(filepath.Dir(path), "fixtures", b.Header.Name)); err != nil {
+			findings = append(findings, blockfile.Finding{Code: "F013", Message: "fixtures: " + err.Error()})
+		}
+	}
+	return findings
 }

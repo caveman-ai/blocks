@@ -34,4 +34,4 @@ homebrew_casks:
 # macOS signing and notarization are required before a public release (docs/decisions/0007);
 # add `notarize:` once an Apple Developer ID is available.
 release:
-  draft: true
+  draft: false

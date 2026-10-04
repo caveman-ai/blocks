@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
+	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -115,37 +116,27 @@ func (r Registry) Add(root, name string, force bool, hashFn func(src []byte, fix
 		return AddResult{}, fmt.Errorf("embedded block %s: %w", name, err)
 	}
 
-	blocks := filepath.Join(root, ".blocks")
-	dst := filepath.Join(blocks, name+".py")
-	fixDir := filepath.Join(blocks, "fixtures", name)
-	for _, p := range []string{dst, fixDir} {
-		fi, err := os.Lstat(p)
+	// Every write and delete goes through repo's safe helpers, which refuse a symlinked .blocks,
+	// .blocks/fixtures, .blocks/fixtures/<name> or block file.
+	dst, fixDir := ".blocks/"+name+".py", ".blocks/fixtures/"+name
+	for _, rel := range []string{dst, fixDir} {
+		p, err := repo.SafePath(root, rel)
 		if err != nil {
-			continue
+			return AddResult{}, err
 		}
-		if !force {
+		if _, err := os.Lstat(p); err == nil && !force {
 			return AddResult{}, fmt.Errorf("%s exists; pass --force to overwrite", p)
 		}
-		if fi.Mode()&fs.ModeSymlink != 0 {
-			return AddResult{}, fmt.Errorf("%s is a symlink; refusing to write through it", p)
-		}
 	}
-	if err := os.RemoveAll(fixDir); err != nil {
+	if err := repo.RemoveAllSafe(root, fixDir); err != nil {
 		return AddResult{}, err
 	}
-	if err := os.MkdirAll(blocks, 0o755); err != nil {
-		return AddResult{}, err
-	}
-	if err := os.WriteFile(dst, src, 0o755); err != nil { // executable: ruff EXE001, direct python3 .blocks/x.py
+	if err := repo.WriteFileSafe(root, dst, src, 0o755); err != nil { // executable: ruff EXE001, direct python3 .blocks/x.py
 		return AddResult{}, err
 	}
 	rels := make([]string, 0, len(fixtures))
 	for rel, data := range fixtures {
-		p := filepath.Join(fixDir, filepath.FromSlash(rel))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return AddResult{}, err
-		}
-		if err := os.WriteFile(p, data, 0o644); err != nil {
+		if err := repo.WriteFileSafe(root, fixDir+"/"+rel, data, 0o644); err != nil {
 			return AddResult{}, err
 		}
 		rels = append(rels, rel)
@@ -162,7 +153,7 @@ func (r Registry) Add(root, name string, force bool, hashFn func(src []byte, fix
 	if err := WriteLock(root, lock); err != nil {
 		return AddResult{}, err
 	}
-	return AddResult{Path: dst, Fixtures: rels, Effect: b.Header.Effects, Entry: entry}, nil
+	return AddResult{Path: filepath.Join(root, filepath.FromSlash(dst)), Fixtures: rels, Effect: b.Header.Effects, Entry: entry}, nil
 }
 
 // StripStamp removes the `# [stamp]` table textually: from the `# [stamp]` line up to the closing
@@ -194,12 +185,16 @@ func StripStamp(src []byte) []byte {
 	return append(out, bytes.Join(lines[end:], nil)...)
 }
 
-func lockPath(root string) string { return filepath.Join(root, ".blocks", "blocks.lock") }
+const lockRel = ".blocks/blocks.lock"
 
-// Lock reads root/.blocks/blocks.lock. A missing file is an empty lock.
+// Lock reads root/.blocks/blocks.lock. A missing file is an empty lock; a symlink is an error.
 func Lock(root string) (map[string]LockEntry, error) {
 	m := map[string]LockEntry{}
-	b, err := os.ReadFile(lockPath(root))
+	p, err := repo.SafePath(root, lockRel)
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(p)
 	if errors.Is(err, fs.ErrNotExist) {
 		return m, nil
 	}
@@ -218,8 +213,5 @@ func WriteLock(root string, lock map[string]LockEntry) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(root, ".blocks"), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(lockPath(root), b, 0o644)
+	return repo.WriteFileSafe(root, lockRel, b, 0o644)
 }

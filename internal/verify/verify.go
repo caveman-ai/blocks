@@ -49,7 +49,8 @@ type Options struct {
 }
 
 // Verify runs b's example from root with $FIXTURES expanded to the block's absolute fixtures dir.
-// It skips when b's effect is not in allow or a `requires` executable is missing. It passes on exit
+// It skips when b's effect is not in allow or a `requires` executable is missing; in Check mode a
+// stale or quarantined stamp fails first. It passes on exit
 // 0 with stdout exactly one JSON object of at most 2 KB holding every returns.keys key. Outside
 // Check mode a pass writes [stamp] verified = hash with no state, and a fail writes
 // state = "quarantined" keeping verified; unchanged bytes are not rewritten. b itself is not updated.
@@ -63,6 +64,22 @@ func Verify(root string, b *blockfile.Block, fixtures map[string][]byte, allow [
 	}
 	o := Outcome{Name: b.Header.Name, Hash: hashFn(b, fixtures)}
 
+	old := blockfile.Stamp{}
+	if b.Header.Stamp != nil {
+		old = *b.Header.Stamp
+	}
+	// In Check mode the committed stamp is judged before any skip, so a pull request cannot land a
+	// quarantined or hand-stamped block as a skip (docs/CI.md).
+	if opts.Check {
+		switch {
+		case old.State == "quarantined":
+			o.Status, o.Reason = Fail, "committed quarantined block: fix and re-verify, or retire"
+			return o
+		case old.Verified != o.Hash:
+			o.Status, o.Reason = Fail, "stamp stale: run caveman-blocks verify locally and commit"
+			return o
+		}
+	}
 	if err := runner.CheckEffect(b, allow); err != nil {
 		var ee *runner.EffectError
 		if errors.As(err, &ee) {
@@ -75,21 +92,6 @@ func Verify(root string, b *blockfile.Block, fixtures map[string][]byte, allow [
 	if err := runner.CheckRequires(b); err != nil {
 		o.Status, o.Reason = Skip, err.Error()
 		return o
-	}
-
-	old := blockfile.Stamp{}
-	if b.Header.Stamp != nil {
-		old = *b.Header.Stamp
-	}
-	if opts.Check {
-		switch {
-		case old.State == "quarantined":
-			o.Status, o.Reason = Fail, "committed quarantined block: fix and re-verify, or retire"
-			return o
-		case old.Verified != o.Hash:
-			o.Status, o.Reason = Fail, "stamp stale: run caveman-blocks verify locally and commit"
-			return o
-		}
 	}
 
 	o.Reason = runExample(root, b, opts.FixturesRoot)
@@ -127,7 +129,12 @@ func runExample(root string, b *blockfile.Block, fixturesRoot string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 	var stderr bytes.Buffer
-	out, exit, err := runner.Exec(ctx, root, b, args, nil, &stderr)
+	outDir, err := os.MkdirTemp("", "caveman-blocks-verify-")
+	if err != nil {
+		return err.Error()
+	}
+	defer os.RemoveAll(outDir)
+	out, exit, err := runner.Exec(ctx, root, outDir, b, args, nil, &stderr)
 	if err != nil {
 		return err.Error()
 	}

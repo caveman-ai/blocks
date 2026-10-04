@@ -4,6 +4,7 @@
 package runner
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -12,9 +13,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -28,9 +32,14 @@ const (
 	// HeadBytes is how much of an overflowing answer is returned inline.
 	HeadBytes = 1024
 
-	outTTL     = 7 * 24 * time.Hour
-	cacheTTL   = time.Hour
-	pruneEvery = 24 * time.Hour
+	// Timeout bounds one `run`; verify sets its own.
+	Timeout = 10 * time.Minute
+
+	outTTL       = 7 * 24 * time.Hour
+	cacheTTL     = time.Hour
+	candidateTTL = 14 * 24 * time.Hour // hook rule 9's window
+	candidateMax = 8 << 20             // newest bytes of a candidates file read when pruning
+	pruneEvery   = 24 * time.Hour
 )
 
 // Sentinel errors, matched with errors.Is.
@@ -91,7 +100,8 @@ type Result struct {
 // checks. allow is allow_effects from committed config. unverified is the caller's verdict from
 // blockfile.Indexed (stamp missing, stale or quarantined); it adds "_unverified": true to a JSON
 // object answer. stdout over Cap bytes is spilled to <stateDir>/out/<id>.log and replaced by a
-// truncation object. The block's exit code is passed through in Result.Exit.
+// truncation object. The block's exit code is passed through in Result.Exit. The run is killed after
+// Timeout.
 func Run(root, stateDir string, b *blockfile.Block, unverified bool, allow []string, args []string, stdin io.Reader, stderr io.Writer) (Result, error) {
 	if err := CheckEffect(b, allow); err != nil {
 		return Result{}, err
@@ -105,7 +115,13 @@ func Run(root, stateDir string, b *blockfile.Block, unverified bool, allow []str
 	if stateDir != "" {
 		prune(stateDir, time.Now())
 	}
-	out, exit, err := Exec(context.Background(), root, b, args, stdin, stderr)
+	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
+	defer cancel()
+	outDir := ""
+	if stateDir != "" {
+		outDir = filepath.Join(stateDir, "out")
+	}
+	out, exit, err := Exec(ctx, root, outDir, b, args, stdin, stderr)
 	if err != nil {
 		return Result{}, err
 	}
@@ -243,21 +259,44 @@ func CheckRequires(b *blockfile.Block) error {
 	return nil
 }
 
-// Python returns python3, else python, from PATH.
-func Python() (string, error) {
+// Python returns python3, else python, from PATH, and refuses one older than 3.10. The answer is
+// cached for the process.
+func Python() (string, error) { return python() }
+
+var python = sync.OnceValues(func() (string, error) {
 	for _, name := range []string{"python3", "python"} {
-		if p, err := exec.LookPath(name); err == nil {
-			return p, nil
+		p, err := exec.LookPath(name)
+		if err != nil {
+			continue
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		out, _ := exec.CommandContext(ctx, p, "--version").CombinedOutput()
+		if !python310(string(out)) {
+			return "", fmt.Errorf("%s reports %q; blocks need Python 3.10 or later", p, strings.TrimSpace(string(out)))
+		}
+		return p, nil
 	}
 	return "", ErrNoPython
+})
+
+// python310 reports whether `python --version` output names Python 3.10 or later.
+func python310(out string) bool {
+	var major, minor int
+	if _, err := fmt.Sscanf(out, "Python %d.%d", &major, &minor); err != nil {
+		return false
+	}
+	return major > 3 || major == 3 && minor >= 10
 }
 
-// Exec runs `python3 <b.Path> args...` from root with the inherited environment and returns the
-// full stdout and exit code. A non-zero exit is not an error; a timeout from ctx is.
+// Exec runs `python3 <b.Path> args...` from root and returns the full stdout and exit code. The
+// environment is inherited plus PYTHONSAFEPATH=1, so a .blocks/json.py cannot shadow the stdlib,
+// and BLOCKS_OUT=outDir when set, where blocks write their logs. The block runs in its own process
+// group, killed whole when ctx ends or this process is interrupted. A non-zero exit is not an
+// error; ctx ending is.
 //
 // ponytail: stdout is buffered in memory; stream to the spill file if blocks ever print gigabytes.
-func Exec(ctx context.Context, root string, b *blockfile.Block, args []string, stdin io.Reader, stderr io.Writer) ([]byte, int, error) {
+func Exec(ctx context.Context, root, outDir string, b *blockfile.Block, args []string, stdin io.Reader, stderr io.Writer) ([]byte, int, error) {
 	py, err := Python()
 	if err != nil {
 		return nil, 0, err
@@ -266,8 +305,17 @@ func Exec(ctx context.Context, root string, b *blockfile.Block, args []string, s
 	if err != nil {
 		return nil, 0, err
 	}
+	// Its own process group takes the block out of the terminal's, so Ctrl-C must reach it via ctx.
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	cmd := exec.CommandContext(ctx, py, append([]string{path}, args...)...)
 	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "PYTHONSAFEPATH=1")
+	if outDir != "" {
+		cmd.Env = append(cmd.Env, "BLOCKS_OUT="+outDir)
+	}
+	cmd.WaitDelay = 5 * time.Second
+	killGroup(cmd)
 	cmd.Stdin = stdin
 	cmd.Stderr = stderr
 	var out bytes.Buffer
@@ -325,13 +373,15 @@ func spill(stateDir string, out []byte) (string, error) {
 	return path, f.Close()
 }
 
-// prune removes out/ entries older than 7 days and cache/ entries older than 1 hour, at most once
+// prune removes out/ entries older than 7 days, cache/ entries older than 1 hour and sightings older
+// than 14 days, at most once
 // per day, tracked by the mtime of <stateDir>/.pruned. Best effort: errors are ignored.
 func prune(stateDir string, now time.Time) {
 	marker := filepath.Join(stateDir, ".pruned")
 	if fi, err := os.Lstat(marker); err == nil && now.Sub(fi.ModTime()) < pruneEvery {
 		return
 	}
+	pruneCandidates(filepath.Join(stateDir, "candidates"), now)
 	for sub, ttl := range map[string]time.Duration{"out": outTTL, "cache": cacheTTL} {
 		dir := filepath.Join(stateDir, sub)
 		entries, _ := os.ReadDir(dir)
@@ -345,4 +395,73 @@ func prune(stateDir string, now time.Time) {
 		f.Close()
 		os.Chtimes(marker, now, now)
 	}
+}
+
+// pruneCandidates drops sightings older than candidateTTL from <stateDir>/candidates/*.jsonl.
+// Sightings are appended in time order, so only the newest candidateMax bytes of a file are read
+// and a bigger file is cut to them. A file is rewritten (temp + rename) only when a line goes.
+//
+// ponytail: a sighting the hook appends during the rewrite is lost; the hook would need a lock.
+func pruneCandidates(dir string, now time.Time) {
+	paths, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+	for _, p := range paths {
+		pruneSightings(p, now.Add(-candidateTTL))
+	}
+}
+
+func pruneSightings(p string, cutoff time.Time) error {
+	f, err := os.OpenFile(p, os.O_RDONLY|repo.NoFollow, 0)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil || !fi.Mode().IsRegular() {
+		return err
+	}
+	cut := fi.Size() > candidateMax
+	if cut {
+		if _, err := f.Seek(fi.Size()-candidateMax, io.SeekStart); err != nil {
+			return err
+		}
+	}
+	var keep bytes.Buffer
+	r := bufio.NewReader(f)
+	dropped, partial := cut, cut // after a seek the first line is partial
+	for {
+		line, err := r.ReadBytes('\n')
+		if len(line) > 0 && !partial {
+			var sg struct {
+				TS time.Time `json:"ts"`
+			}
+			if json.Unmarshal(line, &sg) == nil && !sg.TS.Before(cutoff) {
+				keep.Write(line)
+			} else {
+				dropped = true
+			}
+		}
+		partial = false
+		if err != nil {
+			break
+		}
+	}
+	if !dropped {
+		return nil
+	}
+	if keep.Len() == 0 {
+		return os.Remove(p)
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(p), ".prune-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // no-op after a successful rename
+	if _, err := tmp.Write(keep.Bytes()); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil { // CreateTemp makes it 0600
+		return err
+	}
+	return os.Rename(tmp.Name(), p)
 }

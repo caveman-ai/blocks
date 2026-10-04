@@ -187,3 +187,31 @@ func TestRetire(t *testing.T) {
 		t.Fatal("Retire created blocks.lock")
 	}
 }
+
+// TestRetireRefusesSymlinkedFixtures: .blocks/fixtures -> ~ must not let retire x delete ~/x.
+func TestRetireRefusesSymlinkedFixtures(t *testing.T) {
+	outside := t.TempDir()
+	victim := filepath.Join(outside, "x", "keep")
+	if err := os.MkdirAll(filepath.Dir(victim), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(victim, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".blocks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".blocks", "x.py"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, ".blocks", "fixtures")); err != nil {
+		t.Fatal(err)
+	}
+	if err := Retire(root, "x"); err == nil {
+		t.Error("symlinked .blocks/fixtures: no error")
+	}
+	if _, err := os.Stat(victim); err != nil {
+		t.Errorf("outside file removed: %v", err)
+	}
+}

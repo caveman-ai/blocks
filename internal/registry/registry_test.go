@@ -150,3 +150,37 @@ func TestLockMissing(t *testing.T) {
 		t.Fatalf("%v %v", lock, err)
 	}
 }
+
+// TestAddRefusesSymlinks: a cloned repo whose .blocks/fixtures or .blocks/fixtures/<name> points
+// outside (say at ~) must not get files written or deleted there, even with --force.
+func TestAddRefusesSymlinks(t *testing.T) {
+	hash := func([]byte, map[string][]byte) string { return "h" }
+	for _, link := range []string{".blocks/fixtures", ".blocks/fixtures/json-peek", ".blocks/blocks.lock"} {
+		outside := t.TempDir()
+		victim := filepath.Join(outside, "keep")
+		if err := os.WriteFile(victim, []byte("keep"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		target := outside
+		if strings.HasSuffix(link, ".lock") {
+			target = victim
+		}
+		root := t.TempDir()
+		p := filepath.Join(root, filepath.FromSlash(link))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(target, p); err != nil {
+			t.Fatal(err)
+		}
+		for _, force := range []bool{false, true} {
+			if _, err := testRegistry().Add(root, "json-peek", force, hash); err == nil {
+				t.Errorf("%s force=%v: no error", link, force)
+			}
+		}
+		ents, _ := os.ReadDir(outside)
+		if b, _ := os.ReadFile(victim); len(ents) != 1 || string(b) != "keep" {
+			t.Errorf("%s: outside dir changed: %d entries, victim %q", link, len(ents), b)
+		}
+	}
+}
