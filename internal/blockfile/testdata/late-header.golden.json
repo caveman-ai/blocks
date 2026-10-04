@@ -1,0 +1,4 @@
+{
+  "error": "testdata/late-header.py: F001 line 22: block header starts on line 22; it must be within the first 20 lines",
+  "findings": null
+}

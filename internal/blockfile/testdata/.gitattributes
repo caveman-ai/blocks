@@ -1,0 +1,2 @@
+# Golden inputs are byte-exact; crlf-file.py must keep its CRLF line endings.
+* -text

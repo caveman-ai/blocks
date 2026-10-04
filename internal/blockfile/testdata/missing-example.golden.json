@@ -1,0 +1,43 @@
+{
+  "header": {
+    "Name": "missing-example",
+    "Summary": "Counts lines in a file.",
+    "Effects": "read",
+    "Example": null,
+    "Matches": null,
+    "Returns": {
+      "Keys": [
+        "lines"
+      ],
+      "Doc": ""
+    },
+    "Params": [
+      {
+        "Name": "path",
+        "Type": "path",
+        "Required": true,
+        "Default": null,
+        "Help": "",
+        "Min": null,
+        "Max": null,
+        "Values": null
+      }
+    ],
+    "Requires": null,
+    "Provenance": null,
+    "Stamp": null
+  },
+  "fences": [
+    1,
+    11,
+    -1
+  ],
+  "hash": "f52c05497c25",
+  "findings": [
+    {
+      "Code": "F006",
+      "Message": "example must be a non-empty array of strings",
+      "Line": 0
+    }
+  ]
+}

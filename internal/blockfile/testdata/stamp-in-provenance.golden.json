@@ -1,0 +1,50 @@
+{
+  "header": {
+    "Name": "stamp-in-provenance",
+    "Summary": "Counts lines in a file.",
+    "Effects": "read",
+    "Example": [
+      "--path",
+      "README.md"
+    ],
+    "Matches": null,
+    "Returns": {
+      "Keys": [
+        "lines"
+      ],
+      "Doc": ""
+    },
+    "Params": [
+      {
+        "Name": "path",
+        "Type": "path",
+        "Required": true,
+        "Default": null,
+        "Help": "",
+        "Min": null,
+        "Max": null,
+        "Values": null
+      }
+    ],
+    "Requires": null,
+    "Provenance": {
+      "Created": "2026-10-03",
+      "Source": "",
+      "Sessions": 0
+    },
+    "Stamp": null
+  },
+  "fences": [
+    1,
+    16,
+    -1
+  ],
+  "hash": "74c653262dc8",
+  "findings": [
+    {
+      "Code": "F002",
+      "Message": "unknown key \"provenance.verified\"",
+      "Line": 16
+    }
+  ]
+}
