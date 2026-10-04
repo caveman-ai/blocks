@@ -1,0 +1,3 @@
+headers = {"Authorization": f"Bearer {tok}", 'Cookie': 'sid=42', "Accept": "application/json"}
+-- want --
+headers = {"Authorization": f"«scrubbed»", 'Cookie': '«scrubbed»', "Accept": "application/json"}

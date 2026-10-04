@@ -1,0 +1,3 @@
+slack(xoxb-1234567890-abcdefghij) aws_access_key_id = AKIAIOSFODNN7EXAMPLE maps(AIzaSyA1234567890abcdefghijklmnopqrstu)
+-- want --
+slack(«scrubbed») aws_access_key_id = «scrubbed» maps(«scrubbed»)

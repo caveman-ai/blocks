@@ -1,0 +1,9 @@
+api_key = "my-secret-value"
+DB_PASSWORD='hunter2'
+secret_token = f"tok-{suffix}"
+name = "bob"
+-- want --
+api_key = "«scrubbed»"
+DB_PASSWORD='«scrubbed»'
+secret_token = f"«scrubbed»"
+name = "bob"

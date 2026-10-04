@@ -1,0 +1,3 @@
+blob = base64.b64decode(Y2F2ZW1hbiBibG9ja3MgZml4dHVyZTogdGhlIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIHRoZSBsYXp5IGRvZyAwMTIzNDU2Nzg5IQ==)
+-- want --
+blob = base64.b64decode(«scrubbed»)

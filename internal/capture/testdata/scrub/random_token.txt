@@ -1,0 +1,5 @@
+curl https://hooks.example.com/services/T0001/B0002/q8Zr4Lw2Xv9Kp3Nt6Ys1Hb7Jd5Mf0GcRe2Ua4 -d @payload.json
+export SESSION=Zq3xV8mK2pL9wR4tY7uN1bH6cJ0dF5gA
+-- want --
+curl https://hooks.example.com/services/T0001/B0002/«scrubbed» -d @payload.json
+export SESSION=«scrubbed»

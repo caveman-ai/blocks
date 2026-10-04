@@ -1,0 +1,3 @@
+API_KEY=«scrubbed» curl -H 'Authorization: «scrubbed»' https://«scrubbed»@x.com
+-- want --
+API_KEY=«scrubbed» curl -H 'Authorization: «scrubbed»' https://«scrubbed»@x.com
