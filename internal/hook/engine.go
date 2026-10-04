@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"regexp"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -35,6 +36,7 @@ const (
 	dedupeWindow  = 2 * time.Second     // rule 2
 	promoteWindow = 14 * 24 * time.Hour // rule 9
 	commandHead   = 200                 // Sighting.CommandHead, in runes
+	scriptCap     = 16 << 10            // Sighting.Script, in bytes
 )
 
 // Event is one line of stats.jsonl.
@@ -48,21 +50,20 @@ type Event struct {
 	OK      *bool     `json:"ok,omitempty"`
 }
 
-// BlockInfo is what the engine needs from one block. The caller builds it from blockfile.Block so this
-// package never imports blockfile.
+// BlockInfo is what the engine needs from one indexed block. The caller builds it from
+// blockfile.Block so this package never imports blockfile.
 type BlockInfo struct {
-	Name      string
-	Effects   string           // blockfile.Effect value
-	Matches   []*regexp.Regexp // compiled `matches` patterns
-	Hint      string           // blockfile.CallHint: `caveman-blocks run <name> --p <type> ...`
-	Installed bool             // false for a first-party block that is known but not in .blocks/
+	Name    string
+	Effects string           // blockfile.Effect value
+	Matches []*regexp.Regexp // compiled `matches` patterns
+	Hint    string           // blockfile.CallHint: `caveman-blocks run <name> --p <type> ...`
 }
 
 // Config is the per-call configuration resolved by the caller.
 type Config struct {
 	RepoRoot    string // nearest parent of Cwd holding .blocks/; "" when there is none (rule 1)
 	StateDir    string
-	Blocks      []BlockInfo     // indexed blocks, plus known first-party blocks with Installed=false
+	Blocks      []BlockInfo     // indexed blocks
 	HintEnabled bool            // config.toml `hint`
 	CoveredFPs  map[string]bool // fps named by any block's provenance.source (`candidate:<fp>`)
 	Now         func() time.Time
@@ -83,13 +84,14 @@ type Decision struct {
 	Events []Event `json:"events,omitempty"`
 }
 
-// Cache holds per-call decisions for dedupe and post-run replay, and once-per-session flags.
+// Cache holds per-call decisions for dedupe and post-run replay, rule 9's once-per-shape-per-day
+// flags and rule 8's once-per-session flags.
 type Cache interface {
 	Get(key string) (Decision, bool)
 	Put(key string, d Decision)
 	SeenRecently(key string, within time.Duration) bool
-	PromoteHinted(session string) bool
-	MarkPromoteHinted(session string)
+	PromoteHinted(fp, day string) bool
+	MarkPromoteHinted(fp, day string)
 	AddHinted(session, block string) bool
 	MarkAddHinted(session, block string)
 }
@@ -107,12 +109,12 @@ type Deps struct {
 }
 
 // dumpBlocks lists, per structured-file extension, the first-party blocks that fit, best first (rule 8).
+// A name not among cfg.Blocks is suggested with `caveman-blocks add`.
 var dumpBlocks = map[string][]string{
 	"json":   {"json-peek", "jsonl-stats"},
 	"jsonl":  {"jsonl-stats", "json-peek"},
 	"ndjson": {"jsonl-stats", "json-peek"},
 	"log":    {"first-error"},
-	"csv":    {"jsonl-stats"},
 }
 
 // Decide applies the rules of docs/HOOK.md in order. Hints do not stack; the first rule that produces
@@ -170,12 +172,10 @@ func decide(cfg Config, in Input, deps Deps, ts time.Time) Decision {
 
 	// Rule 4: inline Python script; Extract unwraps the harness's shell wrapper.
 	if s, ok := deps.Extract(in.Command); ok {
-		// Rule 5: s.Edit. Rule 6: a block's matches.
-		if b := bestMatch(cfg.Blocks, s.Body, s.Edit); b != nil {
-			if cfg.HintEnabled {
-				d.Hint = runHint(*b)
-				event(KindHint, b.Name, s.FP, 0)
-			}
+		// Rule 5: s.Edit. Rule 6: a block's matches; with hints off it falls through to capture.
+		if b := bestMatch(cfg.Blocks, s.Body, s.Edit); b != nil && cfg.HintEnabled {
+			d.Hint = runHint(*b)
+			event(KindHint, b.Name, s.FP, 0)
 		} else if s.Lines >= 10 && !s.Edit && s.FP != "" {
 			// Rule 7: capture one scrubbed sighting.
 			if err := deps.Append(s.FP, sighting(in, s, deps.Scrub, ts)); err != nil {
@@ -196,27 +196,38 @@ func decide(cfg Config, in Input, deps Deps, ts time.Time) Decision {
 		}
 	}
 
-	// Rule 9: repeated shapes no block covers.
-	if cfg.HintEnabled && !deps.Cache.PromoteHinted(in.Session) && promoteDue(cfg.CoveredFPs, deps) {
-		if d.Hint == "" {
-			d.Hint = PromoteHint
-		} else {
-			d.Hint += " " + PromoteHint
+	// Rule 9: repeated shapes no block covers, each hinted at most once a day.
+	if cfg.HintEnabled {
+		day := ts.UTC().Format(time.DateOnly)
+		var fresh []string
+		for _, fp := range promoteDue(cfg.CoveredFPs, deps) {
+			if !deps.Cache.PromoteHinted(fp, day) {
+				fresh = append(fresh, fp)
+			}
 		}
-		event(KindPromoteHint, "", "", 0)
-		deps.Cache.MarkPromoteHinted(in.Session)
+		if len(fresh) > 0 {
+			if d.Hint == "" {
+				d.Hint = PromoteHint
+			} else {
+				d.Hint += " " + PromoteHint
+			}
+			event(KindPromoteHint, "", "", 0)
+			for _, fp := range fresh {
+				deps.Cache.MarkPromoteHinted(fp, day)
+			}
+		}
 	}
 	return d
 }
 
-// bestMatch returns the installed block whose patterns match body longest, ties broken by name. When
-// edit, only write-workspace blocks are considered.
+// bestMatch returns the block whose patterns match body longest, ties broken by name. When edit, only
+// write-workspace blocks are considered.
 func bestMatch(blocks []BlockInfo, body string, edit bool) *BlockInfo {
 	var best *BlockInfo
 	bestLen := -1
 	for i := range blocks {
 		b := &blocks[i]
-		if !b.Installed || (edit && b.Effects != "write-workspace") {
+		if edit && b.Effects != "write-workspace" {
 			continue
 		}
 		for _, re := range b.Matches {
@@ -242,12 +253,12 @@ func runHint(b BlockInfo) string {
 	return "Blocks: " + b.Name + " covers this. Next time: " + call
 }
 
-// dumpHint picks the installed block fitting ext, or suggests adding the best fit once per session.
+// dumpHint picks the indexed block fitting ext, or suggests adding the best fit once per session.
 func dumpHint(blocks []BlockInfo, ext, session string, c Cache) (hint, block string) {
 	fits := dumpBlocks[ext]
 	for _, name := range fits {
 		for _, b := range blocks {
-			if b.Name == name && b.Installed {
+			if b.Name == name {
 				return runHint(b), name
 			}
 		}
@@ -259,32 +270,44 @@ func dumpHint(blocks []BlockInfo, ext, session string, c Cache) (hint, block str
 	return "Blocks: " + fits[0] + " covers this. Add it with: caveman-blocks add " + fits[0], fits[0]
 }
 
-// promoteDue reports a shape from 2+ sessions, or 5+ shapes, in the window that no block covers.
-func promoteDue(covered map[string]bool, deps Deps) bool {
+// promoteDue returns the uncovered shapes in the window that call for promotion: those seen in 2+
+// sessions, or else all of them when there are 5+.
+func promoteDue(covered map[string]bool, deps Deps) []string {
 	shapes, err := deps.Shapes(promoteWindow)
 	if err != nil {
 		logErr(deps, err)
-		return false
+		return nil
 	}
-	n := 0
+	var multi, all []string
 	for _, s := range shapes {
 		if covered[s.FP] {
 			continue
 		}
+		all = append(all, s.FP)
 		if s.Sessions >= 2 {
-			return true
+			multi = append(multi, s.FP)
 		}
-		n++
 	}
-	return n >= 5
+	if len(multi) > 0 {
+		return multi
+	}
+	if len(all) >= 5 {
+		return all
+	}
+	return nil
 }
 
 // sighting builds the scrubbed record rule 7 stores. Scrub runs before truncation so a secret split
-// at the cut is still caught.
+// at the cut is still caught. s.Literals already come from the scrubbed body; scrubbing each again
+// is defense in depth.
 func sighting(in Input, s capture.Script, scrub func(string) string, ts time.Time) capture.Sighting {
 	lits := make([]string, len(s.Literals))
 	for i, l := range s.Literals {
 		lits[i] = scrub(l)
+	}
+	script := scrub(s.Body)
+	if len(script) > scriptCap {
+		script = strings.ToValidUTF8(script[:scriptCap], "")
 	}
 	return capture.Sighting{
 		TS:          ts,
@@ -293,7 +316,7 @@ func sighting(in Input, s capture.Script, scrub func(string) string, ts time.Tim
 		Lines:       s.Lines,
 		Literals:    lits,
 		CommandHead: truncate(scrub(in.Command), commandHead),
-		Script:      scrub(s.Body),
+		Script:      script,
 	}
 }
 

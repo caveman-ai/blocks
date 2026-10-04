@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
@@ -28,14 +29,29 @@ func hookCmd() *cobra.Command {
 		Args:               cobra.ArbitraryArgs,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 		Run: func(c *cobra.Command, _ []string) {
-			stdin, _ := io.ReadAll(os.Stdin)
-			c.OutOrStdout().Write(hookAnswer(harness, phase, stdin, time.Now))
+			out := c.OutOrStdout()
+			var once sync.Once
+			answer := func(b []byte) { once.Do(func() { out.Write(b) }) }
+			// The watchdog answers empty and exits 0 when stdin never closes or a decision runs long.
+			go func() {
+				time.Sleep(hookDeadline)
+				answer(emptyAnswer(harness, phase))
+				os.Exit(0)
+			}()
+			stdin, _ := io.ReadAll(io.LimitReader(os.Stdin, hookMaxInput))
+			answer(hookAnswer(harness, phase, stdin, time.Now))
 		},
 	}
 	c.Flags().StringVar(&harness, "harness", "generic", "dialect of the calling harness")
 	c.Flags().StringVar(&phase, "phase", "", "pre or post, for harnesses whose payload does not say")
 	return c
 }
+
+// Bounds on one hook process. A payload over hookMaxInput is cut and fails to parse: empty answer.
+const (
+	hookDeadline = 2 * time.Second
+	hookMaxInput = 1 << 20
+)
 
 type dialect struct {
 	parse  func([]byte) (protocol.Request, error)
@@ -47,6 +63,18 @@ var dialects = map[string]dialect{
 	"codex":   {claude.Parse, claude.Render},
 	"cursor":  {cursor.Parse, cursor.Render},
 	"generic": {generic.Parse, generic.Render},
+}
+
+// emptyAnswer is the dialect's allow-with-no-hint answer, "{}" for an unknown harness.
+func emptyAnswer(harness, phase string) []byte {
+	d, ok := dialects[harness]
+	if !ok {
+		return []byte("{}\n")
+	}
+	if phase == "" {
+		phase = hook.PhasePre
+	}
+	return render(d, protocol.Allow(""), phase)
 }
 
 // hookAnswer turns one harness payload into the harness's answer. Every failure, panics included,
@@ -103,6 +131,11 @@ func hookAnswer(harness, phase string, stdin []byte, now func() time.Time) (out 
 
 // hookConfig builds the engine's view of the repo: indexed blocks with compiled patterns, the fps
 // that blocks' provenance covers, and config.toml's hint switch. A bad config.toml means defaults.
+//
+// It reads block headers only, never fixtures, so a repo's fixture size cannot slow the hook. Without
+// fixtures there is no content hash, so "indexed" is approximated as a non-empty [stamp].verified
+// and an empty state: a block edited since its last verify still hints until sync or verify catches
+// it. The runner checks the real hash before running anything.
 func hookConfig(root, stateDir string, now func() time.Time) hook.Config {
 	conf, err := repo.LoadConfig(root)
 	if err != nil {
@@ -110,13 +143,17 @@ func hookConfig(root, stateDir string, now func() time.Time) hook.Config {
 		conf = repo.DefaultConfig()
 	}
 	cfg := hook.Config{RepoRoot: root, StateDir: stateDir, HintEnabled: conf.Hint, Now: now}
-	all, _ := loadBlocks(root)
-	bs := make([]*blockfile.Block, 0, len(all))
-	for _, l := range all {
-		bs = append(bs, l.b)
-		if l.indexed {
-			cfg.Blocks = append(cfg.Blocks, hook.BlockInfo{Name: l.b.Header.Name, Effects: string(l.b.Header.Effects),
-				Matches: compile(l.b), Hint: blockfile.CallHint(l.b), Installed: true})
+	paths, _ := repo.ListBlocks(root)
+	bs := make([]*blockfile.Block, 0, len(paths))
+	for _, p := range paths {
+		b, err := blockfile.Load(p)
+		if err != nil {
+			continue
+		}
+		bs = append(bs, b)
+		if s := b.Header.Stamp; s != nil && s.Verified != "" && s.State == "" {
+			cfg.Blocks = append(cfg.Blocks, hook.BlockInfo{Name: b.Header.Name, Effects: string(b.Header.Effects),
+				Matches: compile(b), Hint: blockfile.CallHint(b)})
 		}
 	}
 	cfg.CoveredFPs = promote.Covered(bs)

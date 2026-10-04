@@ -8,7 +8,7 @@
   },
   {
     "name": "the promote hint is appended to a match hint",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "loc", "effects": "read", "installed": true, "matches": ["os\\.walk"], "hint": "caveman-blocks run loc"}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "loc", "effects": "read", "matches": ["os\\.walk"], "hint": "caveman-blocks run loc"}]},
     "input": {"command": "python3 -c ...", "cwd": "/repo", "session": "s1"},
     "stub": {"extract": {"body": "import os; os.walk('.')", "lines": 1}, "shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 3}]},
     "expect": {"hint": "Blocks: loc covers this. Next time: caveman-blocks run loc Run caveman-blocks promote when the task is done.",
@@ -36,11 +36,27 @@
     "expect": {"hint": "", "events": null}
   },
   {
-    "name": "the promote hint is given once per session",
+    "name": "a shape is hinted once per day, across sessions",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "ls", "cwd": "/repo", "session": "a-new-session"},
+    "stub": {"shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 2}]},
+    "cache": {"promote_hinted": ["aaaaaaaaaaaa"]},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "a second due shape not yet hinted today still hints",
     "cfg": {"repo_root": "/repo"},
     "input": {"command": "ls", "cwd": "/repo", "session": "s1"},
-    "stub": {"shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 2}]},
-    "cache": {"promote_hinted": true},
+    "stub": {"shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 2}, {"fp": "bbbbbbbbbbbb", "sessions": 3}]},
+    "cache": {"promote_hinted": ["aaaaaaaaaaaa"]},
+    "expect": {"hint": "Run caveman-blocks promote when the task is done.", "events": [{"kind": "promote-hint"}]}
+  },
+  {
+    "name": "five single-session shapes all hinted today stay quiet",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "ls", "cwd": "/repo", "session": "s1"},
+    "stub": {"shapes": [{"fp": "a1", "sessions": 1}, {"fp": "a2", "sessions": 1}, {"fp": "a3", "sessions": 1}, {"fp": "a4", "sessions": 1}, {"fp": "a5", "sessions": 1}]},
+    "cache": {"promote_hinted": ["a1", "a2", "a3", "a4", "a5"]},
     "expect": {"hint": "", "events": null}
   },
   {

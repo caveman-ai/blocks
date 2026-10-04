@@ -11,7 +11,7 @@ import (
 	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
 )
 
-// cacheTTL is how long cache entries live; older ones are ignored and pruned.
+// cacheTTL is how long cache entries live; older ones are ignored. The runner prunes them daily.
 const cacheTTL = time.Hour
 
 // DefaultDeps wires the real capture package and a file-backed cache under <stateDir>/cache/.
@@ -24,18 +24,19 @@ func DefaultDeps(stateDir string) Deps {
 		Scrub:          capture.Scrub,
 		Append:         st.Append,
 		Shapes:         st.Shapes,
-		Cache:          &FileCache{Dir: filepath.Join(stateDir, "cache")},
+		Cache:          &FileCache{Dir: filepath.Join(stateDir, "cache"), FlagDir: filepath.Join(stateDir, "hinted")},
 	}
 }
 
 // FileCache is a Cache with one small file per key; an entry's age is its mtime.
 //
-// ponytail: once-per-session flags live here too, so they expire with the 1 h TTL; a session longer
-// than an hour can see the promote or add hint again. Move flags to their own dir if that annoys.
+// ponytail: rule 8's once-per-session add flags live in Dir too, so they expire with the 1 h TTL; a
+// session longer than an hour can see the add hint again. Rule 9's per-day flags live in FlagDir,
+// which the runner does not prune: one file per shape, holding the day it was last hinted.
 type FileCache struct {
-	Dir    string
-	Now    func() time.Time // nil means time.Now
-	pruned bool
+	Dir     string
+	FlagDir string
+	Now     func() time.Time // nil means time.Now
 }
 
 func (c *FileCache) now() time.Time {
@@ -87,26 +88,29 @@ func (c *FileCache) Put(key string, d Decision) {
 }
 
 func (c *FileCache) write(key string, b []byte) {
-	if err := os.MkdirAll(c.Dir, 0o700); err != nil {
-		return
+	p := c.path(key)
+	if replace(p, b) {
+		t := c.now()
+		os.Chtimes(p, t, t)
 	}
-	c.prune()
-	f, err := os.CreateTemp(c.Dir, ".tmp-*")
+}
+
+// replace writes b to p through a temp file and a rename in p's directory.
+func replace(p string, b []byte) bool {
+	dir := filepath.Dir(p)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return false
+	}
+	f, err := os.CreateTemp(dir, ".tmp-*")
 	if err != nil {
-		return
+		return false
 	}
 	_, werr := f.Write(b)
-	if cerr := f.Close(); werr != nil || cerr != nil {
+	if cerr := f.Close(); werr != nil || cerr != nil || os.Rename(f.Name(), p) != nil {
 		os.Remove(f.Name())
-		return
+		return false
 	}
-	p := c.path(key)
-	if os.Rename(f.Name(), p) != nil {
-		os.Remove(f.Name())
-		return
-	}
-	t := c.now()
-	os.Chtimes(p, t, t)
+	return true
 }
 
 // SeenRecently reports whether key was written within the window.
@@ -115,14 +119,23 @@ func (c *FileCache) SeenRecently(key string, within time.Duration) bool {
 	return ok && a <= within
 }
 
-// PromoteHinted reports whether rule 9 already hinted in session.
-func (c *FileCache) PromoteHinted(session string) bool {
-	_, ok := c.age("promote:" + session)
-	return ok
+func (c *FileCache) flag(fp string) string {
+	h := sha256.Sum256([]byte("promote:" + fp))
+	return filepath.Join(c.FlagDir, hex.EncodeToString(h[:16]))
 }
 
-// MarkPromoteHinted records rule 9's hint for session.
-func (c *FileCache) MarkPromoteHinted(session string) { c.write("promote:"+session, []byte("{}")) }
+// PromoteHinted reports whether rule 9 already hinted shape fp on day. A symlink is never read.
+func (c *FileCache) PromoteHinted(fp, day string) bool {
+	p := c.flag(fp)
+	if fi, err := os.Lstat(p); err != nil || !fi.Mode().IsRegular() {
+		return false
+	}
+	b, err := os.ReadFile(p)
+	return err == nil && string(b) == day
+}
+
+// MarkPromoteHinted records rule 9's hint for shape fp on day.
+func (c *FileCache) MarkPromoteHinted(fp, day string) { replace(c.flag(fp), []byte(day)) }
 
 // AddHinted reports whether rule 8 already suggested adding block in session.
 func (c *FileCache) AddHinted(session, block string) bool {
@@ -133,22 +146,4 @@ func (c *FileCache) AddHinted(session, block string) bool {
 // MarkAddHinted records rule 8's add suggestion for block in session.
 func (c *FileCache) MarkAddHinted(session, block string) {
 	c.write("add:"+session+"\x00"+block, []byte("{}"))
-}
-
-// prune removes entries older than the TTL, at most once per FileCache value (one hook run).
-func (c *FileCache) prune() {
-	if c.pruned {
-		return
-	}
-	c.pruned = true
-	ents, err := os.ReadDir(c.Dir)
-	if err != nil {
-		return
-	}
-	cutoff := c.now().Add(-cacheTTL)
-	for _, e := range ents {
-		if fi, err := e.Info(); err == nil && fi.ModTime().Before(cutoff) {
-			os.Remove(filepath.Join(c.Dir, e.Name()))
-		}
-	}
 }

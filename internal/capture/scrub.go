@@ -49,18 +49,26 @@ func scrub(s string) (string, []string) {
 		spans = append(spans, v)
 		return scrubbed
 	}
-	s = replaceGroups(reURLUser, s, nil, rec)
-	s = replaceGroups(reHeader, s, nil, rec)
-	s = replaceGroups(reCurlHeader, s, nil, rec)
-	quoted := func(m []string) bool {
-		v := m[1] + m[2]
-		return (!skipName(m[0]) || hexSecret(v)) && !pathLike(v) && !strings.HasPrefix(v, "$")
+	// Keyword prefilters skip regexes that cannot match; the regexes dominate the hook's Extract.
+	lower := strings.ToLower(s)
+	if strings.Contains(s, "://") {
+		s = replaceGroups(reURLUser, s, nil, rec)
 	}
-	s = replaceGroups(reAssignDict, s, quoted, rec)
-	s = replaceGroups(reAssignQuoted, s, quoted, rec)
-	s = replaceGroups(reAssignBare, s, func(m []string) bool {
-		return (!skipName(m[1]) || hexSecret(m[2])) && !codeValue(m[2]) && !pathLike(m[2])
-	}, rec)
+	if hasAny(lower, "authorization", "cookie") {
+		s = replaceGroups(reHeader, s, nil, rec)
+	}
+	s = replaceGroups(reCurlHeader, s, nil, rec)
+	if hasAny(lower, "key", "token", "secret", "passw", "pwd", "credential", "auth") {
+		quoted := func(m []string) bool {
+			v := m[1] + m[2]
+			return (!skipName(m[0]) || hexSecret(v)) && !pathLike(v) && !strings.HasPrefix(v, "$")
+		}
+		s = replaceGroups(reAssignDict, s, quoted, rec)
+		s = replaceGroups(reAssignQuoted, s, quoted, rec)
+		s = replaceGroups(reAssignBare, s, func(m []string) bool {
+			return (!skipName(m[1]) || hexSecret(m[2])) && !codeValue(m[2]) && !pathLike(m[2])
+		}, rec)
+	}
 	s = rePrefix.ReplaceAllStringFunc(s, func(t string) string {
 		if strings.HasPrefix(t, "sk-") && !strings.ContainsAny(t[3:], "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
 			return t // sk-some-component-name, not a key
@@ -69,6 +77,15 @@ func scrub(s string) (string, []string) {
 	})
 	s = reLong.ReplaceAllStringFunc(s, func(t string) string { return scrubToken(t, rec) })
 	return s, spans
+}
+
+func hasAny(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
 }
 
 // scrubToken scrubs a 32+ character token when it is a secret. A slashed token is a path when a

@@ -1,7 +1,7 @@
 [
   {
     "name": "a block call counts a call event and returns",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "matches": ["json\\.load"]}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "matches": ["json\\.load"]}]},
     "input": {"command": "caveman-blocks run json-peek --path a.json", "cwd": "/repo", "session": "s1"},
     "stub": {"block_call": "json-peek", "dump": "json"},
     "expect": {"hint": "", "events": [{"kind": "call", "block": "json-peek"}]}

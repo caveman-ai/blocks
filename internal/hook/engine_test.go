@@ -22,11 +22,10 @@ type goldenCase struct {
 		HintDisabled bool     `json:"hint_disabled"`
 		CoveredFPs   []string `json:"covered_fps"`
 		Blocks       []struct {
-			Name      string   `json:"name"`
-			Effects   string   `json:"effects"`
-			Matches   []string `json:"matches"`
-			Hint      string   `json:"hint"`
-			Installed bool     `json:"installed"`
+			Name    string   `json:"name"`
+			Effects string   `json:"effects"`
+			Matches []string `json:"matches"`
+			Hint    string   `json:"hint"`
 		} `json:"blocks"`
 	} `json:"cfg"`
 	Input struct {
@@ -57,7 +56,7 @@ type goldenCase struct {
 		Cmd           *Decision `json:"cmd"`
 		CmdRecent     bool      `json:"cmd_recent"`
 		Call          *Decision `json:"call"`
-		PromoteHinted bool      `json:"promote_hinted"`
+		PromoteHinted []string  `json:"promote_hinted"` // fps already hinted today
 		AddHinted     []string  `json:"add_hinted"`
 	} `json:"cache"`
 	Expect struct {
@@ -90,10 +89,10 @@ func (m *memCache) Put(k string, d Decision)      { m.entries[k] = d; m.recent[k
 func (m *memCache) SeenRecently(k string, _ time.Duration) bool {
 	return m.recent[k]
 }
-func (m *memCache) PromoteHinted(s string) bool { return m.flags["promote:"+s] }
-func (m *memCache) MarkPromoteHinted(s string)  { m.flags["promote:"+s] = true }
-func (m *memCache) AddHinted(s, b string) bool  { return m.flags["add:"+s+":"+b] }
-func (m *memCache) MarkAddHinted(s, b string)   { m.flags["add:"+s+":"+b] = true }
+func (m *memCache) PromoteHinted(fp, day string) bool { return m.flags["promote:"+fp+":"+day] }
+func (m *memCache) MarkPromoteHinted(fp, day string)  { m.flags["promote:"+fp+":"+day] = true }
+func (m *memCache) AddHinted(s, b string) bool        { return m.flags["add:"+s+":"+b] }
+func (m *memCache) MarkAddHinted(s, b string)         { m.flags["add:"+s+":"+b] = true }
 
 var testNow = time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
 
@@ -131,7 +130,7 @@ func runGolden(t *testing.T, c goldenCase) {
 		cfg.CoveredFPs[fp] = true
 	}
 	for _, b := range c.Cfg.Blocks {
-		bi := BlockInfo{Name: b.Name, Effects: b.Effects, Hint: b.Hint, Installed: b.Installed}
+		bi := BlockInfo{Name: b.Name, Effects: b.Effects, Hint: b.Hint}
 		for _, m := range b.Matches {
 			bi.Matches = append(bi.Matches, regexp.MustCompile(m))
 		}
@@ -150,8 +149,8 @@ func runGolden(t *testing.T, c goldenCase) {
 	if c.Cache.Call != nil {
 		cache.entries[callKey(in.CallID)] = *c.Cache.Call
 	}
-	if c.Cache.PromoteHinted {
-		cache.MarkPromoteHinted(in.Session)
+	for _, fp := range c.Cache.PromoteHinted {
+		cache.MarkPromoteHinted(fp, testNow.Format(time.DateOnly))
 	}
 	for _, b := range c.Cache.AddHinted {
 		cache.MarkAddHinted(in.Session, b)
@@ -239,7 +238,7 @@ func runGolden(t *testing.T, c goldenCase) {
 func TestFileCache(t *testing.T) {
 	dir := t.TempDir()
 	now := testNow
-	c := &FileCache{Dir: dir, Now: func() time.Time { return now }}
+	c := &FileCache{Dir: dir, FlagDir: t.TempDir(), Now: func() time.Time { return now }}
 
 	if _, ok := c.Get("k"); ok {
 		t.Fatal("empty cache hit")
@@ -264,25 +263,27 @@ func TestFileCache(t *testing.T) {
 		t.Fatal("replay lost inside the TTL")
 	}
 
-	if c.PromoteHinted("s") || c.AddHinted("s", "json-peek") {
+	if c.PromoteHinted("aaa", "2026-10-03") || c.AddHinted("s", "json-peek") {
 		t.Fatal("flags set on a fresh cache")
 	}
-	c.MarkPromoteHinted("s")
+	c.MarkPromoteHinted("aaa", "2026-10-03")
 	c.MarkAddHinted("s", "json-peek")
-	if !c.PromoteHinted("s") || c.PromoteHinted("t") || !c.AddHinted("s", "json-peek") || c.AddHinted("s", "first-error") {
-		t.Fatal("flags not scoped to session and block")
+	if !c.PromoteHinted("aaa", "2026-10-03") || c.PromoteHinted("bbb", "2026-10-03") || c.PromoteHinted("aaa", "2026-10-04") ||
+		!c.AddHinted("s", "json-peek") || c.AddHinted("s", "first-error") {
+		t.Fatal("flags not scoped to shape and day, or session and block")
 	}
 
 	now = now.Add(2 * time.Hour)
 	if _, ok := c.Get("k"); ok {
 		t.Fatal("entry outlived the TTL")
 	}
-	// A fresh run prunes the expired files.
-	c2 := &FileCache{Dir: dir, Now: func() time.Time { return now }}
-	c2.Put("other", Decision{})
-	ents, _ := os.ReadDir(dir)
-	if len(ents) != 1 {
-		t.Fatalf("prune left %d files, want 1", len(ents))
+	// The promote flag outlives the cache TTL: it is per day, not per hour.
+	if !c.PromoteHinted("aaa", "2026-10-03") {
+		t.Fatal("promote flag expired with the cache TTL")
+	}
+	c.MarkPromoteHinted("aaa", "2026-10-04")
+	if c.PromoteHinted("aaa", "2026-10-03") || !c.PromoteHinted("aaa", "2026-10-04") {
+		t.Fatal("a new day does not replace the flag")
 	}
 }
 
@@ -302,5 +303,54 @@ func TestFileCacheRefusesSymlink(t *testing.T) {
 	c.Put("k", Decision{Hint: "mine"})
 	if b, _ := os.ReadFile(target); string(b) != `{"hint":"planted"}` {
 		t.Fatal("wrote through a symlink")
+	}
+}
+
+// stubDeps returns Deps with no script, no block call and no dump; shapes and extract are set by tests.
+func stubDeps(c Cache) Deps {
+	return Deps{
+		Extract:        func(string) (capture.Script, bool) { return capture.Script{}, false },
+		IsBlockCall:    func(string) (string, bool) { return "", false },
+		StructuredDump: func(string) (string, bool) { return "", false },
+		Scrub:          func(s string) string { return s },
+		Append:         func(string, capture.Sighting) error { return nil },
+		Shapes:         func(time.Duration) ([]capture.Shape, error) { return nil, nil },
+		Cache:          c,
+	}
+}
+
+func TestPromoteHintOncePerShapePerDay(t *testing.T) {
+	now := testNow
+	cfg := Config{RepoRoot: "/repo", HintEnabled: true, Now: func() time.Time { return now }}
+	deps := stubDeps(newMemCache())
+	deps.Shapes = func(time.Duration) ([]capture.Shape, error) {
+		return []capture.Shape{{FP: "aaaaaaaaaaaa", Sessions: 2}}, nil
+	}
+	hint := func(session string) string {
+		return Decide(cfg, Input{Phase: PhasePre, Command: "ls", Session: session}, deps).Hint
+	}
+	if hint("s1") != PromoteHint {
+		t.Fatal("no promote hint for a due shape")
+	}
+	if hint("s2") != "" {
+		t.Fatal("a new session the same day hinted the same shape again")
+	}
+	now = now.Add(24 * time.Hour)
+	if hint("s3") != PromoteHint {
+		t.Fatal("no promote hint on the next day")
+	}
+}
+
+func TestSightingScriptCapped(t *testing.T) {
+	body := strings.Repeat("print('é')\n", 4000) // 48 KB, multi-byte runes
+	var got capture.Sighting
+	deps := stubDeps(newMemCache())
+	deps.Extract = func(string) (capture.Script, bool) {
+		return capture.Script{Body: body, Lines: 4000, FP: "aaaaaaaaaaaa"}, true
+	}
+	deps.Append = func(_ string, sg capture.Sighting) error { got = sg; return nil }
+	Decide(Config{RepoRoot: "/repo", Now: func() time.Time { return testNow }}, Input{Phase: PhasePre, Command: "python3 -"}, deps)
+	if len(got.Script) == 0 || len(got.Script) > 16<<10 || !strings.HasPrefix(body, got.Script) {
+		t.Fatalf("script %d bytes, want a valid prefix of at most 16 KiB", len(got.Script))
 	}
 }

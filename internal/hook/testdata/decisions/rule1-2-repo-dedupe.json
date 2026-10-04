@@ -9,7 +9,7 @@
   },
   {
     "name": "same call within two seconds returns the cached decision with events emptied",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "hint": "caveman-blocks run json-peek --path <path>"}]},
     "input": {"command": "cat a.json", "cwd": "/repo", "session": "s1", "call_id": "t2"},
     "stub": {"dump": "json"},
     "cache": {"cmd": {"hint": "first hook's hint", "events": [{"ts": "2026-10-03T12:00:00Z", "session": "s1", "kind": "hint", "block": "json-peek"}]}, "cmd_recent": true},
@@ -17,7 +17,7 @@
   },
   {
     "name": "same call older than the dedupe window is decided afresh",
-    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "hint": "caveman-blocks run json-peek --path <path>"}]},
     "input": {"command": "cat a.json", "cwd": "/repo", "session": "s1"},
     "stub": {"dump": "json"},
     "cache": {"cmd": {"hint": "stale"}, "cmd_recent": false},
