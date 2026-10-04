@@ -49,7 +49,7 @@ path-like tokens stripped and whitespace collapsed; it says "the same script aga
 literal vector in a sighting. `fp`, the shape fingerprint, is the first 12 hex of SHA-256 over
 `"py|" + sorted import names + call names with counts bucketed to 1, 2, 3+`, where call names come from
 a fixed table committed at `internal/capture/callnames.go` (`json.load`, `json.loads`, `json.dump`,
-`open`, `print`, `re.sub`, `re.findall`, `re.search`, `Counter`, `glob`, `os.walk`, `subprocess`,
+`json.dumps`, `open`, `print`, `re.sub`, `re.findall`, `re.search`, `Counter`, `glob`, `os.walk`, `subprocess`,
 `sys.argv`, `argparse`, `urllib`, `requests`, `csv`, `yaml`, `pathlib`, `sqlite3`, `psycopg`,
 `time.sleep`). A body with no imports and no table hits has no `fp` and is not captured. The table is
 data; changing it is a golden-table change.
