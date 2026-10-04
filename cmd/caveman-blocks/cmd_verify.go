@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
+	"github.com/JuliusBrussee/caveman-blocks/internal/registry"
 	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
 	"github.com/JuliusBrussee/caveman-blocks/internal/stats"
 	"github.com/JuliusBrussee/caveman-blocks/internal/verify"
@@ -33,6 +34,9 @@ func verifyCmd() *cobra.Command {
 					return err
 				}
 				if len(a) == 1 {
+					if !registry.ValidName(a[0]) {
+						return usageError{fmt.Errorf("invalid block name %q", a[0])}
+					}
 					paths = []string{filepath.Join(blocksDir, a[0]+".py")}
 				} else if paths, err = filepath.Glob(filepath.Join(blocksDir, "*.py")); err != nil {
 					return err
