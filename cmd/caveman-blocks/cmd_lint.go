@@ -100,8 +100,16 @@ func lintFile(path string, opts blockfile.LintOptions) []blockfile.Finding {
 	}
 	findings := blockfile.Lint(b, opts)
 	// Fixtures sit beside the block: .blocks/fixtures/<name> or, first-party, blocks/fixtures/<name>.
+	// Under .blocks/ they are read like verify and sync do, so a symlinked fixtures dir fails here too.
 	if registry.ValidName(b.Header.Name) {
-		if _, err := repo.ReadFixtureDir(filepath.Join(filepath.Dir(path), "fixtures", b.Header.Name)); err != nil {
+		dir := filepath.Dir(path)
+		var err error
+		if abs, e := filepath.Abs(dir); e == nil && filepath.Base(abs) == ".blocks" {
+			_, err = repo.FixtureFiles(filepath.Dir(abs), b.Header.Name)
+		} else {
+			_, err = repo.ReadFixtureDir(filepath.Join(dir, "fixtures", b.Header.Name))
+		}
+		if err != nil {
 			findings = append(findings, blockfile.Finding{Code: "F015", Message: "fixtures: " + err.Error()})
 		}
 	}

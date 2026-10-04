@@ -128,11 +128,14 @@ func verifyOne(root, path string, allow []string, fixturesRoot string, check, fi
 }
 
 func printOutcome(out io.Writer, o verify.Outcome) {
-	line := fmt.Sprintf("%-4s %s %s", o.Status, o.Name, o.Hash)
+	line := fmt.Sprintf("%-4s %s", o.Status, o.Name)
+	if o.Hash != "" {
+		line += " " + o.Hash
+	}
 	if o.Reason != "" {
 		line += ": " + o.Reason
 	}
-	fmt.Fprintln(out, strings.TrimRight(line, " "))
+	fmt.Fprintln(out, line)
 }
 
 // recordVerify appends a verify event; skips are not counted as pass or fail.
