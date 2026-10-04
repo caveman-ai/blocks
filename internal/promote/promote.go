@@ -18,6 +18,7 @@ import (
 	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
 	"github.com/JuliusBrussee/caveman-blocks/internal/index"
 	"github.com/JuliusBrussee/caveman-blocks/internal/registry"
+	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
 )
 
 // Rules is the eight-rule authoring pack, byte-identical to docs/FORMAT.md "The eight rules".
@@ -306,14 +307,17 @@ func Retire(root, name string) error {
 	if !registry.ValidName(name) {
 		return fmt.Errorf("invalid block name %q", name)
 	}
-	blocks := filepath.Join(root, ".blocks")
-	if err := os.Remove(filepath.Join(blocks, name+".py")); err != nil {
+	p, err := repo.SafePath(root, ".blocks/"+name+".py")
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(p); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("no block %q in %s: %w", name, blocks, err)
+			return fmt.Errorf("no block %q in %s: %w", name, filepath.Dir(p), err)
 		}
 		return err
 	}
-	if err := os.RemoveAll(filepath.Join(blocks, "fixtures", name)); err != nil {
+	if err := repo.RemoveAllSafe(root, ".blocks/fixtures/"+name); err != nil {
 		return err
 	}
 	lock, err := registry.Lock(root)

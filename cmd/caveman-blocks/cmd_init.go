@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
 	"github.com/spf13/cobra"
 )
 
@@ -41,12 +42,15 @@ func initCmd() *cobra.Command {
 				return err
 			}
 			out := c.OutOrStdout()
-			if err := os.MkdirAll(filepath.Join(root, ".blocks"), 0o755); err != nil {
+			blocks, err := repo.SafePath(root, ".blocks") // refuses a symlinked .blocks
+			if err != nil {
 				return err
 			}
-			cfg := filepath.Join(root, ".blocks", "config.toml")
-			if _, err := os.Lstat(cfg); errors.Is(err, fs.ErrNotExist) {
-				if err := os.WriteFile(cfg, []byte(configTemplate), 0o644); err != nil {
+			if err := os.MkdirAll(blocks, 0o755); err != nil {
+				return err
+			}
+			if _, err := os.Lstat(filepath.Join(blocks, "config.toml")); errors.Is(err, fs.ErrNotExist) {
+				if err := repo.WriteFileSafe(root, ".blocks/config.toml", []byte(configTemplate), 0o644); err != nil {
 					return err
 				}
 				fmt.Fprintln(out, "created: .blocks/config.toml")

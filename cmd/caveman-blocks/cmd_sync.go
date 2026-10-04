@@ -95,8 +95,8 @@ func syncRepo(root string, check, forceExport bool) ([]string, error) {
 		agents = index.PointerBody
 	}
 	upsert := func(name, section string) error {
-		cur, err := os.ReadFile(filepath.Join(root, name))
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		cur, err := readSafe(root, name)
+		if err != nil {
 			return err
 		}
 		want[name] = index.Upsert(cur, section)
@@ -116,41 +116,60 @@ func syncRepo(root string, check, forceExport bool) ([]string, error) {
 
 	var changed []string
 	for name, data := range want {
-		cur, err := os.ReadFile(filepath.Join(root, name))
-		if err == nil && bytes.Equal(cur, data) {
+		cur, err := readSafe(root, name)
+		if err != nil {
+			return nil, err
+		}
+		if bytes.Equal(cur, data) {
 			continue
 		}
 		changed = append(changed, name)
 		if check {
 			continue
 		}
-		p := filepath.Join(root, name)
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return nil, err
-		}
-		if err := os.WriteFile(p, data, 0o644); err != nil {
+		if err := repo.WriteFileSafe(root, name, data, 0o644); err != nil {
 			return nil, err
 		}
 	}
 	for _, name := range remove {
 		changed = append(changed, name)
 		if !check {
-			if err := os.Remove(filepath.Join(root, name)); err != nil {
+			if err := repo.RemoveAllSafe(root, name); err != nil {
 				return nil, err
 			}
-			os.Remove(filepath.Join(root, filepath.Dir(name))) // only when now empty
+			if p, err := repo.SafePath(root, filepath.Dir(name)); err == nil {
+				os.Remove(p) // only when now empty
+			}
 		}
 	}
 	sort.Strings(changed)
 	return changed, nil
 }
 
+// readSafe reads root/rel through repo.SafePath; a missing file is nil content, a symlink an error.
+func readSafe(root, rel string) ([]byte, error) {
+	p, err := repo.SafePath(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(p)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	return b, err
+}
+
 // exports adds the SKILL.md files for indexed blocks to want, in each export dir that exists (or
-// every one when force), and returns generated SKILL.md files of blocks no longer indexed.
+// every one when force), and returns generated SKILL.md files of blocks no longer indexed. An
+// export dir reached through a symlink counts as absent.
 func exports(root string, indexed []*blockfile.Block, force bool, want map[string][]byte) []string {
 	var remove []string
 	for _, dir := range export.Dirs {
-		if _, err := os.Stat(filepath.Join(root, dir)); err != nil && !force {
+		p, err := repo.SafePath(root, dir)
+		if err != nil {
+			continue
+		}
+		if _, err := os.Lstat(p); err != nil && !force {
 			continue
 		}
 		keep := map[string]bool{}
@@ -166,7 +185,7 @@ func exports(root string, indexed []*blockfile.Block, force bool, want map[strin
 			if keep[rel] {
 				continue
 			}
-			if data, err := os.ReadFile(p); err == nil && strings.Contains(string(data), export.Marker) {
+			if data, err := readSafe(root, rel); err == nil && strings.Contains(string(data), export.Marker) {
 				remove = append(remove, rel)
 			}
 		}

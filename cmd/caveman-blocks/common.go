@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -62,6 +61,9 @@ func loadBlock(root, path string) (loaded, error) {
 		return loaded{}, err
 	}
 	fx, err := repo.FixtureFiles(root, b.Header.Name)
+	if errors.Is(err, repo.ErrFixturesTooLarge) {
+		return loaded{b: b}, nil // never indexed; lint and verify report why
+	}
 	if err != nil {
 		return loaded{}, err
 	}
@@ -119,34 +121,6 @@ func firstParty() ([]*blockfile.Block, error) {
 		out = append(out, b)
 	}
 	return out, nil
-}
-
-// readFixtures reads dir/** as slash-separated relpath → content; a missing dir is empty.
-// It is repo.FixtureFiles for a fixtures root outside .blocks/ (first-party mode).
-func readFixtures(dir string) (map[string][]byte, error) {
-	files := map[string][]byte{}
-	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			if p == dir && errors.Is(err, fs.ErrNotExist) {
-				return fs.SkipAll
-			}
-			return err
-		}
-		if d.Type()&fs.ModeSymlink != 0 {
-			return fmt.Errorf("%s: symlink in fixtures", p)
-		}
-		if d.IsDir() {
-			return nil
-		}
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		rel, _ := filepath.Rel(dir, p)
-		files[filepath.ToSlash(rel)] = data
-		return nil
-	})
-	return files, err
 }
 
 // parseSince accepts Go durations plus a day suffix: 30d, 7d, 36h.

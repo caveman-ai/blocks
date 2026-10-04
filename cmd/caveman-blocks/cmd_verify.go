@@ -114,7 +114,7 @@ func verifyOne(root, path string, allow []string, fixturesRoot string, check, fi
 	}
 	var fx map[string][]byte
 	if fixturesRoot != "" {
-		fx, err = readFixtures(filepath.Join(fixturesRoot, b.Header.Name))
+		fx, err = repo.ReadFixtureDir(filepath.Join(fixturesRoot, b.Header.Name))
 	} else {
 		fx, err = repo.FixtureFiles(root, b.Header.Name)
 	}
