@@ -46,7 +46,12 @@ the body falls through to capture.
 
 The hook reads `config.toml` and the block headers from the working tree, never through `git`, to stay
 inside the budget. Only the runner's effects gate reads committed policy. It does not hash blocks
-either: for rules 6 and 8 a block counts as indexed when its `[stamp].verified` is non-empty and it has
+either: for rules 6 and 8 a block counts as indexed when its `[stamp].verified` is non-empty and it has A block also has to pass header
+validation: name equals the file name and is not a stdlib module, param names match
+`^[a-z][a-z0-9_-]{0,31}$` with a known type, a one-line summary of at most 100 characters without control
+characters, a known effect, at most 16 `matches` of 200 bytes each. A block that fails is never hinted, so a
+hostile header cannot put text in front of the agent. The hook reads at most 200 `.blocks/*.py` files in
+name order, skips files over 64 KiB, reads only the first 64 KiB of each, and stops at `index_max` blocks.
 no `state`. That is a cheap approximation; `sync` and `verify` compute the real content hash.
 
 Two identities per body. `script_sha` is SHA-256 of the body with string literals, numbers and
@@ -73,11 +78,14 @@ out/<id>.log            full block outputs written by the runner
 stats.jsonl             counted events
 hook.log                internal errors, rate limited to one line per minute
 cache/                  per-call decisions for dedupe and post-run replay
-hinted/                 per-shape UTC day of the last promote hint
+hinted/                 per-shape day of the last promote hint and per-session rule-8 add flags; pruned after 2 days
 ```
 
 The runner prunes `out/` entries older than 7 days and `cache/` entries older than 1 hour, at most once
-a day, on its own invocations. Sightings in `candidates/` older than 14 days are pruned by the same daily run, and a stored
+a day. The hook runs the same prune after it has written its answer on a pre-run call, abandoned when the
+watchdog fires, so a machine that never runs a block still gets pruned. Sightings in `candidates/` older
+than 14 days are pruned by that daily run, rule 9 reads only candidate files written inside the 14-day
+window and only the newest 1 MiB of each, and a stored
 script is cut at 16 KiB.
 
 Files are opened with `O_APPEND|O_NOFOLLOW` and created `0600`. A cloned repository therefore cannot

@@ -121,6 +121,8 @@ request review, and the fact that nothing in `.blocks/` runs unless an agent or 
 - Idempotent and non-interactive: no prompts, no reliance on being run once.
 - Composition: a block calls another block with `caveman-blocks run <name> ...` and parses the JSON.
   There is no shared library.
+- Children a block leaves in its process group are killed when the block exits; a block whose child still
+  holds stdout keeps its JSON answer after a 5-second wait.
 - The runner invokes `python3 <file>` from the repo root with `PYTHONSAFEPATH=1` and `BLOCKS_OUT` set to the
   state dir's `out/` folder, where a block writes any full log it keeps; the file does not need an executable bit.
 - The runner executes a block whether or not its stamp is current, because an agent iterates on a
@@ -157,7 +159,8 @@ into `.blocks/INDEX.md` and, byte-identical, between `<!-- caveman-blocks:start 
 json-peek      --path <path> [--depth 2]       Shape of a JSON or JSONL file: keys, row count, one sample.
 ```
 
-A block is indexed when it is active (no `state`) and its `verified` stamp matches its content.
+A block is indexed when it is active (no `state`), its `verified` stamp matches its content, and its
+header passes validation (F003, F004, F005, F007, F008).
 Sorted by name so the text is deterministic across machines. The whole section, rules included, has a
 byte budget of 4 KiB enforced by `sync`; the default `index_max` is 20 lines and each line is cut at 110
 characters on a word boundary with `…`. Exceeding the budget fails `sync` with a request to retire blocks
@@ -176,11 +179,11 @@ so in `import` mode it pays one file read per session.
 | F001 | Header present, within the first 20 lines, parses as TOML, one per file |
 | F002 | No unknown keys |
 | F003 | `name` valid and equal to the file name |
-| F004 | `summary` one line, at most 100 characters |
+| F004 | `summary` one line, at most 100 characters, no control characters |
 | F005 | `effects` is a known value and not below the inferred floor |
 | F006 | `example` is a non-empty array of strings |
-| F007 | Declared params and `add_argument` names match both ways (`--help` excepted) |
-| F008 | `matches` patterns compile as RE2 |
+| F007 | Declared params and `add_argument` names match both ways (`--help` excepted); param names match `^[a-z][a-z0-9_-]{0,31}$` and `type` is one of str, int, float, bool, path, enum |
+| F008 | `matches` patterns compile as RE2; at most 16 patterns of at most 200 bytes each |
 | F009 | No absolute home paths (`/Users/`, `/home/`, `C:\Users\`) in the source |
 | F010 | `json.dumps` appears and no other `print` or `sys.stdout.write` targets stdout |
 | F011 | `returns.keys` non-empty |

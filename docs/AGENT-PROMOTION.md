@@ -65,4 +65,4 @@ mode and applies the same checks. Same brief, same lint, same verify. Phase 2.
 - `provenance.sessions = 1` is allowed. `stats` lists blocks with one source session and no later runs
   so they can be retired.
 - Retirement is `caveman-blocks retire <name>`: removes the file and its fixtures and runs `sync`. Git
-  keeps the history.
+  keeps the history. A partial retire (for example after a refused symlink) can be re-run to finish.
