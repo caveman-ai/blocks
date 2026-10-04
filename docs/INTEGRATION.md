@@ -6,7 +6,7 @@ one job, and a data-driven profile so that most new harnesses are a config entry
 ```
   harness ──stdin──▶ [dialect: parse] ──▶ [generic protocol] ──▶ [engine] ──▶ [generic protocol] ──▶ [dialect: render] ──stdout──▶ harness
                                                                    ▲
-                                              profile: events, config path, capabilities, timeout unit
+                                              profile: dialect, events, timeout, config path and format
 ```
 
 ## Layer 1: the generic protocol
@@ -58,6 +58,7 @@ A profile is data, embedded in the binary as `internal/hook/profiles.toml`, one 
 
 ```toml
 [claude-code]
+phase = 1
 dialect = "claude"
 detect = ["~/.claude"]
 config = "~/.claude/settings.json"
@@ -65,14 +66,10 @@ config_format = "claude-settings"          # how to merge our entry into the fil
 pre_event = { name = "PreToolUse", matcher = "Bash" }
 post_event = {}                             # empty: pre-run hint is enough
 timeout = { value = 5, unit = "s" }
-command_field = "tool_input.command"
-capabilities = ["pre-hint", "transcripts"]
-instruction_files = ["AGENTS.md", "CLAUDE.md"]   # AGENTS.md gets the section; CLAUDE.md gets @.blocks/INDEX.md
-skills_dir = ".claude/skills"
-transcripts = "~/.claude/projects/*/*.jsonl"
 trust_note = "Hooks run after the folder is trusted in an interactive session."
 
 [cursor]
+phase = 1
 dialect = "cursor"
 detect = ["~/.cursor"]
 config = "~/.cursor/hooks.json"
@@ -80,26 +77,29 @@ config_format = "cursor-hooks"
 pre_event = { name = "beforeShellExecution" }
 post_event = { name = "afterShellExecution" }
 timeout = { value = 5, unit = "s" }
-command_field = "command"
-capabilities = ["post-hint", "transcripts-commands-only"]
-instruction_files = ["AGENTS.md"]
-skills_dir = ".agents/skills"
-transcripts = "~/.cursor/projects/*/agent-transcripts/*/*.jsonl"
+trust_note = "Cursor also loads Claude Code hook files by default; the hook dedupes the double call."
 ```
 
-`hooks install`, `hooks status`, `export` and `scan` read the profile and nothing else; `sync` is driven by which instruction files exist (HOOK.md). Adding a
-harness that speaks an existing dialect and an existing config format is one table. A harness with a new
+The profile drives `hooks install` and `hooks status`: which harnesses are present, which file to
+write, which events to register with which matcher and timeout, and which dialect the installed
+`caveman-blocks hook --harness <name>` entry speaks. Nothing else reads it. `sync` is existence-driven:
+it writes to the instruction files present at the repo root (HOOK.md). `scan` has a fixed reader per
+harness in `internal/scan/readers.go`. `export` has fixed targets, `.claude/skills/` and
+`.agents/skills/`. Adding a harness that speaks an existing dialect and an existing config format is
+one table. A harness with a new
 config file shape needs one `config_format` writer, a small function that knows how to insert and remove
 our entry idempotently, identified by a marker key.
 
 ## Layer 4: capability tiers
 
-The engine does not know which harness it serves. The profile's capabilities decide what the user gets:
+The engine does not know which harness it serves. The profile's events decide what the user gets: a
+harness with a context field on its pre-run event needs only `pre_event`; one without also registers a
+`post_event` that replays the pre-run decision.
 
-| Tier | Capabilities | What works | Harnesses | Phase |
+| Tier | Events | What works | Harnesses | Phase |
 |---|---|---|---|---|
-| A | `pre-hint` | everything, one event | Claude Code, Codex CLI | 1 |
-| B | `post-hint` | everything, two events | Cursor (1), Copilot CLI (2), Gemini CLI (2) | 1–2 |
+| A | `pre_event` only | everything, one event | Claude Code, Codex CLI | 1 |
+| B | `pre_event` and `post_event` | everything, two events | Cursor (1), Copilot CLI (2), Gemini CLI (2) | 1–2 |
 | C | none | rules, index, exports; no capture, no hints | Amp, OpenCode, Cline, anything that reads AGENTS.md | always |
 
 Tier C is not a degraded mode to apologize for. It is the passive layer every harness gets, and it is
@@ -118,14 +118,14 @@ conformance fixture. They are optional and separately versioned; the binary neve
    here: open a pull request with the table and a conformance fixture from the docs.
 2. If not, write the dialect: two structs, two functions, fixtures.
 3. If its config file shape is new, write the `config_format` writer with install, uninstall and status.
-4. Add the transcript reader to `internal/scan/reader/<harness>` if transcripts exist and are useful.
+4. Add a transcript reader to `internal/scan/readers.go` if transcripts exist and are useful.
 5. Run `make e2e`, which replays every conformance fixture through the real binary.
 6. Add a row to the table in [HOOK.md](HOOK.md) and the research record with the doc URLs and date.
 
 ## What stays out of the adapters
 
-- No decision logic. If a harness needs special behavior, it is a capability flag the engine reads, never
-  a branch on the harness name.
+- No decision logic. The engine never branches on the harness name; a harness that needs different
+  delivery gets it from its profile's events and its dialect.
 - No command rewriting, even where the harness allows it.
 - No harness-specific state. The pre-to-post cache in the state dir is keyed by `call_id`, or by hash(session, cwd, command) when the harness gives no id, and shared.
 - No network. Adapters read stdin, write stdout, and touch exactly one config file on install.

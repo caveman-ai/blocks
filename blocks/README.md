@@ -2,8 +2,8 @@
 
 Blocks shipped in this repository, embedded in the binary with their fixtures, installed with
 `caveman-blocks add <name>`, which copies the block to `.blocks/<name>.py` and its fixtures to
-`.blocks/fixtures/<name>/`. Python 3.10+ standard library only, `ruff` clean with defaults. This repo's
-CI runs `lint --first-party` and `verify --fixtures-root blocks/fixtures` over `blocks/`; embedded copies
+`.blocks/fixtures/<name>/`. Python 3.10+ standard library only, `ruff` clean with defaults (`make
+blocks-lint`, a contributor check). This repo's CI runs `lint --first-party` and `verify --fixtures-root blocks/fixtures` over `blocks/`; embedded copies
 carry no stamp.
 
 | Name | Effects | Returns | Co-occurs with (scan; overlapping categories, one machine, upper bounds) |
@@ -14,8 +14,13 @@ carry no stamp.
 | `first-error` | read | first error line, surrounding context, line number | tail and grep of build and CI logs |
 | `wait-for` | read | whether the condition was met, elapsed seconds, last line | `until ... sleep` polling loops |
 | `grep-defs` | read | function, type and constant signatures with line numbers | `grep -n "^func \|^type "` |
-| `http-json` | network | status, selected keys, size, path of the full body | `curl ... \| python -c "json.load"`. Example uses `file://$FIXTURES/...` so the example itself needs no network; `verify` still skips it until `network` is in `allow_effects` |
+| `http-json` | network | status, selected keys, size, path of the full body | `curl ... \| python -c "json.load"`. Example uses `file://$FIXTURES/...` so the example itself needs no network; `verify` still skips it until `network` is in `allow_effects`. A `file://` URL that resolves outside the repo root (the current directory, since the runner starts blocks there) is an error |
 | `replace-in-file` | write-workspace | matches found, replaced, dry-run diff head | read, `str.replace`, write heredocs (51%, never captured) with an asserted match count; its `matches` patterns hint on them |
+
+`test-summary --cmd` runs an arbitrary shell command, so its `exec` effect means anything local: the
+command can do whatever the user running it can. `matches` patterns are tested only against the Python
+body of an inline script (HOOK.md rule 6); the shell shapes in the last column are what the scan saw
+around those scripts, not hint triggers.
 
 Candidates for the next round, pending scan data from design partners: `sql-peek`, `git-touched`,
 `repo-map`, `diff-summary`.

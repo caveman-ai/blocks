@@ -38,11 +38,16 @@ Rules, in order. Hints do not stack; the first rule that produces one wins.
 | 5 | Body is an edit: reads a file, replaces a string or regex, writes the same path | Mark `edit`; continue. Edits are never captured. |
 | 6 | Body matches a `matches` pattern of an indexed block, tested against the body. When `edit`, only blocks with `effects = "write-workspace"` are considered. Several hits: longest match wins, then name. | Hint: `Blocks: <name> covers this. Next time: caveman-blocks run <name> --<param> ...` using the block's required params. Event `hint{block, fp}`. Skip rule 7. |
 | 7 | Body is 10+ lines and not `edit` | Capture one sighting to the state dir (below). Event `script{fp, lines}`. |
-| 8 | Command reads a structured file whole: `cat`/`head`/`tail`/`less` of `.json`, `.jsonl`, `.ndjson`, `.log`, `.csv` | Hint naming the indexed block among `json-peek`, `jsonl-stats`, `first-error` that fits. If none is installed, hint `caveman-blocks add <name>` once per session. Event `hint`. |
-| 9 | Evaluated on every call after the rules above: a shape with sightings from 2+ sessions in the last 14 days that no block's `provenance.source` names, or 5+ such shapes, and no promote hint yet this session | Append ` Run caveman-blocks promote when the task is done.` to the hint, or emit it alone. Event `promote-hint`. |
+| 8 | Command reads a structured file whole: `cat`/`less`/`more`/`bat` of `.json`, `.jsonl`, `.ndjson`, `.log` | Hint naming the indexed block among `json-peek`, `jsonl-stats`, `first-error` that fits. If none is installed, hint `caveman-blocks add <name>` once per session. Event `hint`. |
+| 9 | Evaluated on every call after the rules above: a shape with sightings from 2+ sessions in the last 14 days that no block's `provenance.source` names, or 5+ such shapes | Append ` Run caveman-blocks promote when the task is done.` to the hint, or emit it alone, at most once per shape per day. Event `promote-hint`. |
+
+With `hint = false` in `config.toml` no rule emits a hint, and a rule 6 match no longer skips rule 7:
+the body falls through to capture.
 
 The hook reads `config.toml` and the block headers from the working tree, never through `git`, to stay
-inside the budget. Only the runner's effects gate reads committed policy.
+inside the budget. Only the runner's effects gate reads committed policy. It does not hash blocks
+either: for rules 6 and 8 a block counts as indexed when its `[stamp].verified` is non-empty and it has
+no `state`. That is a cheap approximation; `sync` and `verify` compute the real content hash.
 
 Two identities per body. `script_sha` is SHA-256 of the body with string literals, numbers and
 path-like tokens stripped and whitespace collapsed; it says "the same script again" and feeds the
@@ -71,7 +76,8 @@ cache/                  per-call decisions for dedupe and post-run replay
 ```
 
 The runner prunes `out/` entries older than 7 days and `cache/` entries older than 1 hour, at most once
-a day, on its own invocations.
+a day, on its own invocations. Sightings in `candidates/` older than 14 days are pruned, and a stored
+script is cut at 16 KiB.
 
 Files are opened with `O_APPEND|O_NOFOLLOW` and created `0600`. A cloned repository therefore cannot
 point the hook at a file of its choosing: the hook only reads `.blocks/`, and it refuses to read through
@@ -84,8 +90,10 @@ characters with high entropy. Scrubbed spans are replaced by `«scrubbed»`.
 
 The hook must never break a session. The binary exits 0 in every reachable case and expresses
 everything through JSON, because Copilot treats any non-zero exit on its pre-tool hook as a denial of
-the agent's command. Internal errors go to `hook.log` and the decision is empty. Configured timeouts are
-5 seconds everywhere; the engine's own budget is 30 ms for a full decision and 5 ms for rule 1.
+the agent's command. Internal errors go to `hook.log` and the decision is empty. The hook reads at most
+1 MiB of stdin, and a 2-second watchdog answers `{}` and exits 0 if a decision has not been written by
+then. Configured timeouts are 5 seconds everywhere; the engine's own budget is 30 ms for a full decision
+and 5 ms for rule 1.
 
 `hooks install` copies the binary to `~/.local/share/caveman-blocks/bin/caveman-blocks` and writes that
 absolute path into the harness configuration. It refuses to write a path under an npm or npx cache,

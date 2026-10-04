@@ -8,7 +8,7 @@
 | First-party blocks | Python 3.10+ standard library | Present on nearly every development machine, including Windows; stdlib keeps blocks dependency-free |
 | Regex | Go `regexp` (RE2) for `matches` patterns | Linear time; a block cannot hang the hook with a pathological pattern |
 | Tests | `go test` with golden tables; `testscript` for CLI end-to-end; Python `unittest` fixtures for blocks | Hermetic, fast, readable diffs |
-| Lint | `gofmt`, `go vet`, `golangci-lint` with the default set plus `errcheck` | Standard |
+| Lint | `gofmt`, `go vet` (`make lint`) | Standard |
 | Release | GoReleaser: GitHub releases with checksums, `homebrew_casks`, signed and notarized macOS binaries; hand-written `install.sh`; npm shim plus per-platform packages published by CI | Decision 0007 |
 | CI | GitHub Actions: `test`, `lint`, `e2e`, `bench-hook` on macOS and Linux; Windows builds and runs unit tests only in v0 | Hook budget enforced in CI |
 | Docs | Markdown in `docs/`, decision records in `docs/decisions/` | Rationale next to code |
@@ -25,12 +25,15 @@ caveman-blocks/
     index/                   INDEX.md and managed-section rendering, freshness check (pure)
     hook/                    decision engine                   (pure; golden tables in internal/hook/testdata/)
       protocol/              generic JSON request/response, versioned (pure)
-      dialect/<name>/        claude, cursor, copilot, gemini, generic: parse + render (pure; conformance fixtures)
-      profiles.toml          per-harness data: dialect, events, config path, capabilities, transcripts
+      dialect/<name>/        claude, cursor, generic: parse + render (pure; conformance fixtures)
+      profiles.toml          per-harness data: dialect, events, timeout, config path and format
       install/               config_format writers: insert, remove, status for each config file shape
+      testdata/              golden decision tables, dialect conformance fixtures, install cases
     capture/                 script extraction, edit filter, normalization, shape, scrub, sightings store
       callnames.go           the fixed call-name table used by the shape fingerprint
-    scan/                    transcript readers (one per harness, versioned), grouping, report
+      testdata/scrub/        golden scrub cases
+    scan/                    transcript readers (readers.go, one per harness), grouping, report
+      testdata/<harness>/    scrubbed transcript samples for the readers
     verify/                  run example from the working tree, check contract, write stamp
     registry/                embedded first-party blocks (go:embed), add, diff, update, lock file
     promote/                 brief rendering, candidate ranking, retire
@@ -38,20 +41,14 @@ caveman-blocks/
     stats/                   append and summarize events
     export/                  SKILL.md rendering for export   (pure; golden test)
     repo/                    repo root, .blocks/, config.toml at HEAD, state dir, default branch, instruction files
-  blocks/                    first-party blocks, one file each, plus fixtures/<name>/; README.md is the registry table
+  blocks/                    first-party blocks, one file each, plus fixtures/<name>/ and tests/; README.md is the registry table
   testdata/
     e2e/                     testscript scenarios run by make e2e (build tag e2e)
-    scrub/                   golden scrub cases
-    repo/                    a small fixture repository for end-to-end tests
-    repo/                    a small fixture repository for end-to-end tests
-    transcripts/<harness>/   scrubbed transcript samples for scan readers
-    hook/                    golden decision tables: command in, decision out
   npm/                       shim package and per-platform package templates
-  integrations/<harness>/    optional plugin shims for Tier C harnesses (Amp, OpenCode, Cline), separately versioned
   docs/                      see README
   .github/workflows/         ci.yml, release.yml
-  Makefile                   test, lint, e2e, bench-hook, build
-  AGENTS.md = CLAUDE.md      instructions for agents working in this repo
+  Makefile                   test, lint, e2e, bench-hook, build, blocks-test, blocks-lint, blocks-verify
+  AGENTS.md                  instructions for agents working in this repo; there is no CLAUDE.md
 ```
 
 ## Package rules

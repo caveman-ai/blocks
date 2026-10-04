@@ -17,7 +17,7 @@ v0 supports Python 3.10 or later only. Shell and JavaScript blocks are later, ad
 # summary = "Shape of a JSON or JSONL file: keys, row count, one sample. Never the data."
 # effects = "read"
 # example = ["--path", "$FIXTURES/sample.json", "--depth", "1"]
-# matches = ['json\.loads?\(', 'JSON\.parse\(']
+# matches = ['json\.load\(open', 'json\.loads?\(.*\.read\(\)', 'json\.load\(sys\.stdin']
 #
 # [returns]
 # keys = ["kind", "keys", "rows", "sample", "truncated"]
@@ -54,21 +54,21 @@ print(json.dumps(answer))
 
 | Key | Required | Written by | Rules |
 |---|---|---|---|
-| `name` | yes | author | 1–64 chars, `a-z`, `0-9`, `-`; no leading, trailing or double hyphen; equals the file name without `.py`. Same rules as the Agent Skills `name`, so export is lossless. Style: two or three kebab words, verb-noun or noun-noun (`json-peek`, `test-summary`). |
+| `name` | yes | author | 1–64 chars, `a-z`, `0-9`, `-`; no leading, trailing or double hyphen; not a Python standard-library module name (F013); equals the file name without `.py`. Same rules as the Agent Skills `name`, so export is lossless. Style: two or three kebab words, verb-noun or noun-noun (`json-peek`, `test-summary`). |
 | `summary` | yes | author | One sentence, at most 100 characters. This is the index line and the exported skill description. Say what comes back. |
 | `effects` | yes | author | One of `read`, `write-workspace`, `exec`, `network`, `external`. See below. |
 | `example` | yes | author | TOML array of argument strings. `$FIXTURES` expands to `.blocks/fixtures/<name>`. `verify` runs the block with these arguments from the repo root; this is the only test. |
 | `[returns]` | yes | author | `keys`: top-level keys the answer always contains; `verify` checks each is present. `doc`: free text. |
-| `matches` | no | author | RE2 patterns tested against the body of an inline script the agent is about to run. A hit produces a hint. Expected on every block that replaces a common script shape. |
+| `matches` | no | author | RE2 patterns tested against the body of an inline Python script the agent is about to run, never the shell command around it. A hit produces a hint. Expected on every block that replaces a common script shape. |
 | `[params]` | no | author | One table per parameter: `type` (`str`, `int`, `float`, `bool`, `path`, `enum`), `required` or `default`, optional `help`, `min`, `max`, `values` for `enum`. `path` values must resolve inside the repo root; the runner rejects others. |
 | `requires` | no | author | Executables the block needs on `PATH`, for example `["pytest"]`. `verify` and `run` fail early with a clear message when one is missing. |
 | `[provenance]` | no | author | `created`, `source` (`registry:<name>@<version>` or `candidate:<fp>`), `sessions`. `promote` prints a proposed table for the agent to paste; nothing updates it afterwards. |
 | `[stamp]` | no | tool | The only table the tool writes. Always last in the header. `verified`: 12 hex characters of the content hash below. `state`: absent means active; `"quarantined"` is written on failure and removed on the next success. |
 
 The content hash is SHA-256, truncated to 12 hex, over: the block file with CRLF normalized to LF and
-the lines from `# [stamp]` to the closing fence removed, together with the bare `#` separator line above
-them, followed by the sorted list of
-`(relative path, SHA-256)` for every file under `.blocks/fixtures/<name>/`. A fixture edit therefore
+the lines from `# [stamp]` to the closing fence removed, together with every consecutive bare `#` line
+directly above `# [stamp]` (or directly above the closing fence when there is no stamp), followed by the
+sorted list of `(relative path, SHA-256)` for every file under `.blocks/fixtures/<name>/`. A fixture edit therefore
 invalidates the stamp too. A block is in the index only when `verified` equals the current hash. The
 tool rewrites the `[stamp]` table and nothing else, so verifying unchanged content is a no-op and the
 committed file never churns. `blocks.lock` records the same hash for first-party blocks. `add` strips
@@ -94,9 +94,14 @@ lint floor is `read < write-workspace < exec < network < external`; a block decl
 reaches. Blocks write their logs to the state dir, not the repo, so running tests is `exec`, not
 `write-workspace`.
 
-Lint infers a floor from the source: `urllib`, `http.client`, `socket`, `requests`, `httpx` imply
-`network`; `subprocess`, `os.system`, `os.exec*` imply at least `exec`; file writes imply at least
-`write-workspace`. A declared effect below the floor fails lint.
+Lint infers a floor from the source: importing `urllib` (except `urllib.parse`), `http.client`,
+`socket`, `ssl`, `smtplib`, `ftplib`, `xmlrpc`, `requests`, `httpx`, `urllib3`, `aiohttp` or
+`websockets`, or calling `asyncio.open_connection`, implies `network`; importing `subprocess`, `pty` or
+`multiprocessing`, or calling `os.system`, `os.exec*`, `os.popen`, `os.spawn*` or
+`asyncio.create_subprocess_*`, implies at least `exec`; `open` in a writing mode, `write_text`,
+`write_bytes`, `shutil.copy*`, `shutil.move`, `shutil.rmtree`, `os.remove`, `os.makedirs` and any
+`.unlink`, `.touch`, `.mkdir` or `.rename` call (`os` or `Path`) imply at least `write-workspace`.
+`tempfile` does not. A declared effect below the floor fails lint.
 
 Effects are hygiene, not a security boundary. A block run directly with `python3 .blocks/x.py`
 bypasses the runner, and a header can lie. The controls for that are `CODEOWNERS` on `.blocks/`, pull
@@ -178,8 +183,10 @@ so in `import` mode it pays one file read per session.
 | F009 | No absolute home paths (`/Users/`, `/home/`, `C:\Users\`) in the source |
 | F010 | `json.dumps` appears and no other `print` or `sys.stdout.write` targets stdout |
 | F011 | `returns.keys` non-empty |
-| F012 | `--first-party` only (used by this repo's CI): imports are standard library, one import per line, `ruff check` clean with defaults |
+| F012 | `--first-party` only (used by this repo's CI): stdlib-only imports, one import per line |
+| F013 | `name` is not a Python standard-library module name (`json`, `csv`, `glob`, `http`, `time`, …): the runner starts `python3 .blocks/<name>.py`, which puts `.blocks/` first on `sys.path`, so `.blocks/json.py` would break `import json` in every block |
 | W001 | Warning: current branch is the repository's default branch (see AGENT-PROMOTION) |
+| W002 | Warning: a `matches` pattern looks like shell, not Python (contains a backslash-escaped pipe, `grep `, `tail `, `curl ` or `until `); it is tested only against the Python body, so it never fires |
 
 ## Export
 

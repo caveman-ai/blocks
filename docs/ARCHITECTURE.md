@@ -33,7 +33,7 @@ agent harness, and as a CI step. No daemon, no service, no model calls, no netwo
 | `hook` | Decision engine: shell command in, hint and events out | yes |
 | `hook/protocol` | Generic JSON request and response, versioned | yes |
 | `hook/dialect/<name>` | Parse and render one harness JSON shape to the protocol | yes |
-| `hook/profiles.toml` | Per-harness data: dialect, events, config path, capabilities, transcripts | data |
+| `hook/profiles.toml` | Per-harness data for `hooks install`: dialect, events, timeout, config path and format | data |
 | `hook/install` | Insert, remove and report our entry in each config file shape | no |
 | `capture` | Script extraction, edit detection, normalization, shape fingerprint, scrub, sightings store | mostly |
 | `scan` | Transcript readers per harness; grouping by shape; report | mostly |
@@ -103,8 +103,8 @@ Nothing reads the lock in v0; it exists so phase 2's `diff` and `update` have pr
 - `INDEX.md`: generated; identical to the `AGENTS.md` section.
 - State dir layout, sighting schema and scrub list: [HOOK.md](HOOK.md#state-directory).
 - `stats.jsonl`: one object per event: `ts`, `session`, `kind` (`script`, `hint`, `promote-hint`,
-  `call`, `run`, `verify`), `block`, `fp`, `ok`, and for `run` events `bytes_full`, `bytes_returned`,
-  `exit`. The hook writes `script`, `hint`, `promote-hint` and `call`; the runner writes `run`; `verify`
+  `call`, `run`, `verify`), `block`, `fp`, `ok`, for `script` events `lines`, and for `run` events
+  `bytes_full`, `bytes_returned`, `exit`. The hook writes `script`, `hint`, `promote-hint` and `call`; the runner writes `run`; `verify`
   writes `verify`. "Hint followed" is a `call` of the hinted block after a `hint` in the same session.
 
 ## Install and distribution
@@ -128,6 +128,8 @@ index cap is also a latency cap.
 - The hook binary is installed at user level by the person, never from repo configuration.
 - The hook reads `.blocks/` and writes only to the state dir, with `O_NOFOLLOW`; it refuses symlinks
   under `.blocks/`. A cloned repo cannot direct a write.
+- Writes under the repo go through one helper that refuses to write through a symlink. Fixtures are regular files only, at most 64 KiB in total per
+  block.
 - Effects are read from committed config at `HEAD`, enforced in the runner, and are hygiene rather than
   a security boundary; see [FORMAT.md](FORMAT.md#effects).
 - Captured scripts are scrubbed before storage and shown scrubbed in the promotion brief.

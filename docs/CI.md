@@ -40,6 +40,9 @@ user's repo. `make blocks-verify` therefore runs `lint --first-party blocks` and
 `verify --check --all --first-party --fixtures-root blocks/fixtures --blocks-dir blocks`, where
 `--first-party` treats a block with no stamp as stamped with its current hash, so the example alone
 decides pass or fail, and writes nothing. Outside `--first-party` a missing stamp is stale, as in the
-table above. No `.blocks/config.toml` exists here, so `http-json` (`network`) is a listed skip. CI also
+table above. `--blocks-dir` is a hidden flag for this repository's own layout, where the registry lives
+in `blocks/` rather than `.blocks/`; user repos never need it. This repo's `.blocks/config.toml` allows
+no extra effects, so `http-json` (`network`) is a listed skip. CI also checks this repo's own `.blocks/`
+with the user-repo commands from the snippet above. CI also
 runs `make e2e` and `make bench-hook`; the latter skips rule 1 when spawning `/usr/bin/true` alone
 takes over half its 5 ms budget, and skips entirely above 20 ms.
