@@ -1,0 +1,3 @@
+author = "Bob"; authority = "ca"; pwd = os.getcwd(); PWD=$(pwd); d = {"key": "model"}; token: str = args.token
+-- want --
+author = "Bob"; authority = "ca"; pwd = os.getcwd(); PWD=$(pwd); d = {"key": "model"}; token: str = args.token
