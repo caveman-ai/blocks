@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "./hooks/audit.sh",
+        "matcher": "curl|wget"
+      },
+      {
+        "command": "/opt/cb/caveman-blocks hook --harness cursor --phase pre",
+        "timeout": 5
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "./hooks/format.sh"
+      }
+    ],
+    "afterShellExecution": [
+      {
+        "command": "/opt/cb/caveman-blocks hook --harness cursor --phase post",
+        "timeout": 5
+      }
+    ]
+  }
+}

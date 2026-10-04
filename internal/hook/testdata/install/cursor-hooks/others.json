@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "./hooks/audit.sh",
+        "matcher": "curl|wget"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "./hooks/format.sh"
+      }
+    ]
+  }
+}
