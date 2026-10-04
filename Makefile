@@ -19,7 +19,7 @@ bench-hook: build
 	go test -tags e2e ./cmd/... -run TestHookBudget -v
 
 blocks-test:
-	python3 -m unittest blocks/test_blocks.py
+	python3 -m unittest blocks/tests/test_blocks.py
 
 check-instructions:
 	test ! -e CLAUDE.md

@@ -136,7 +136,7 @@ func (r Registry) Add(root, name string, force bool, hashFn func(src []byte, fix
 	if err := os.MkdirAll(blocks, 0o755); err != nil {
 		return AddResult{}, err
 	}
-	if err := os.WriteFile(dst, src, 0o644); err != nil {
+	if err := os.WriteFile(dst, src, 0o755); err != nil { // executable: ruff EXE001, direct python3 .blocks/x.py
 		return AddResult{}, err
 	}
 	rels := make([]string, 0, len(fixtures))

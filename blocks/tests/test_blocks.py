@@ -13,9 +13,9 @@ import unittest
 
 import tomllib
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # blocks/
 FIXTURES = os.path.join(HERE, "fixtures")
-BLOCKS = sorted(name[:-3] for name in os.listdir(HERE) if name.endswith(".py") and name != "test_blocks.py")
+BLOCKS = sorted(name[:-3] for name in os.listdir(HERE) if name.endswith(".py") )
 FENCE = re.compile(r"(?m)^# /// block$\s(?P<content>(^#(| .*)$\s)+)^# ///$")
 
 
