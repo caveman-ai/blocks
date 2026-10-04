@@ -1,0 +1,26 @@
+# init in a fresh git repo writes .blocks/, config.toml, AGENTS.md and INDEX.md; sync --check passes.
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+stdout 'created: .blocks/config.toml'
+stdout 'changed: .blocks/INDEX.md'
+stdout 'changed: AGENTS.md'
+stdout 'docs/CI.md'
+
+grep '^promote = "commit"$' .blocks/config.toml
+grep '^allow_effects = \[\]$' .blocks/config.toml
+grep '^<!-- caveman-blocks:start -->$' AGENTS.md
+grep '^<!-- caveman-blocks:end -->$' AGENTS.md
+grep '^BLOCKS. Scripts in this repo are reusable blocks in .blocks/. Rules:$' AGENTS.md
+grep '^8. Compose: call existing blocks' .blocks/INDEX.md
+! exists CLAUDE.md
+
+exec caveman-blocks sync --check
+stdout 'sync: up to date'
+
+# Running init again changes nothing and keeps config.toml.
+exec caveman-blocks init
+! stdout 'changed:'
+! stdout 'created:'

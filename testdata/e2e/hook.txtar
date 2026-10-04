@@ -1,0 +1,51 @@
+# hook: {} outside a repo; a hint naming an indexed block for a matching heredoc, repeated via dedupe;
+# a block call counted as a call event.
+[!exec:python3] skip 'python3 is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+# Outside any repo (rule 1) the answer is empty. The payload has no cwd, so the hook uses its own.
+mkdir outside
+cd outside
+stdin ../pre.json
+exec caveman-blocks hook --harness claude
+cmp stdout ../empty.json
+cd ..
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+exec caveman-blocks add json-peek
+
+stdin ../pre.json
+exec caveman-blocks hook --harness claude
+stdout '^\{"hookSpecificOutput":\{"hookEventName":"PreToolUse","additionalContext":"Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path \\u003cpath\\u003e"\}\}$'
+cp stdout ../first.json
+
+# The same call again within 2 seconds is deduped: same hint, no second event.
+stdin ../pre.json
+exec caveman-blocks hook --harness claude
+cmp stdout ../first.json
+
+stdin ../call.json
+exec caveman-blocks hook --harness codex
+cmp stdout ../empty.json
+
+# Malformed input and unknown harnesses still exit 0.
+stdin ../call.json
+exec caveman-blocks hook --harness nobody
+cmp stdout ../empty.json
+stdin ../empty.json
+exec caveman-blocks hook --harness claude
+cmp stdout ../empty.json
+
+exec caveman-blocks stats
+stdout '^hints shown +1 +measured'
+stdout '^block calls +1 +measured'
+stdout '^hints followed +1 +measured'
+
+-- empty.json --
+{}
+-- pre.json --
+{"session_id":"e2e","hook_event_name":"PreToolUse","tool_use_id":"t1","tool_input":{"command":"python3 - <<'EOF'\nimport json\nd=json.load(open('x.json'))\nprint(d.keys())\nEOF"}}
+-- call.json --
+{"session_id":"e2e","hook_event_name":"PreToolUse","tool_use_id":"t2","tool_input":{"command":"caveman-blocks run json-peek --path x.json"}}

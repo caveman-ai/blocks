@@ -1,0 +1,26 @@
+# export writes SKILL.md for indexed blocks; sync keeps existing export dirs fresh and drops retired ones.
+[!exec:python3] skip 'python3 is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+exec caveman-blocks add json-peek
+! exists .claude/skills
+
+exec caveman-blocks export
+stdout '^changed: .agents/skills/json-peek/SKILL.md$'
+stdout '^changed: .claude/skills/json-peek/SKILL.md$'
+grep '^name: json-peek$' .claude/skills/json-peek/SKILL.md
+grep '^description: "Shape of a JSON or JSONL file' .claude/skills/json-peek/SKILL.md
+grep '^caveman-blocks run json-peek --path <path>$' .agents/skills/json-peek/SKILL.md
+grep 'python3 .blocks/json-peek.py --path <path>. runs the same file, but nothing is enforced' .agents/skills/json-peek/SKILL.md
+exec caveman-blocks sync --check
+
+exec caveman-blocks retire json-peek
+stdout '^removed: .blocks/json-peek.py$'
+! exists .claude/skills/json-peek/SKILL.md
+! exists .agents/skills/json-peek
+! exists .blocks/fixtures/json-peek
+! grep json-peek .blocks/blocks.lock
+! grep json-peek .blocks/INDEX.md

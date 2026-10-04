@@ -1,0 +1,40 @@
+# hooks install, status and uninstall against a temporary HOME; a binary in an npx cache is refused.
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+mkdir home/.claude
+
+exec caveman-blocks hooks status
+stdout '^claude-code: not installed'
+! stdout codex
+
+exec caveman-blocks hooks install
+stdout '^binary: .*/home/.local/share/caveman-blocks/bin/caveman-blocks \(copied\)$'
+stdout '^claude-code: installed in ~/.claude/settings.json$'
+stdout 'trusted in an interactive session'
+! stdout 'codex|cursor'
+exists home/.local/share/caveman-blocks/bin/caveman-blocks
+grep '/home/.local/share/caveman-blocks/bin/caveman-blocks hook --harness claude' home/.claude/settings.json
+
+exec caveman-blocks hooks status
+stdout '^claude-code: installed, runs .*/home/.local/share/caveman-blocks/bin/caveman-blocks$'
+
+exec caveman-blocks hooks install
+stdout '\(unchanged\)$'
+stdout '^claude-code: unchanged'
+
+# Naming a harness installs it even when it is not detected.
+exec caveman-blocks hooks install --harness codex
+stdout '^codex: installed in ~/.codex/hooks.json$'
+stdout 'open /hooks in Codex'
+! exec caveman-blocks hooks install --harness nope
+stderr 'unknown --harness'
+
+exec caveman-blocks hooks uninstall
+stdout '^claude-code: removed from ~/.claude/settings.json$'
+! grep 'caveman-blocks' home/.claude/settings.json
+exec caveman-blocks hooks status
+stdout '^claude-code: not installed'
+
+# A binary running from an npx cache would leave a dangling hook.
+cpbin _npx/caveman-blocks
+! exec $WORK/_npx/caveman-blocks hooks install
+stderr 'install caveman-blocks with install.sh or brew first'

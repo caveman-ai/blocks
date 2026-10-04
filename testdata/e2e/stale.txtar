@@ -1,0 +1,30 @@
+# verify --check fails once a verified block is edited, and passes after verify re-stamps it.
+[!exec:python3] skip 'python3 is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+exec caveman-blocks add json-peek
+exec caveman-blocks verify --check --all
+stdout '^pass json-peek'
+
+exec sh -c 'echo "# edited" >> .blocks/json-peek.py'
+! exec caveman-blocks verify --check --all
+stdout '^fail json-peek [0-9a-f]{12}: stamp stale'
+! exec caveman-blocks sync --check
+stdout '^stale: .blocks/INDEX.md$'
+stdout '^stale: AGENTS.md$'
+
+exec caveman-blocks verify json-peek
+stdout '^pass json-peek'
+exec caveman-blocks verify --check --all
+exec caveman-blocks sync --check
+
+# A fixture edit invalidates the stamp too.
+cp ../extra.json .blocks/fixtures/json-peek/extra.json
+! exec caveman-blocks verify --check json-peek
+stdout 'stamp stale'
+
+-- extra.json --
+{"a": 1}

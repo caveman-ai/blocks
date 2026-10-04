@@ -1,0 +1,30 @@
+# add copies a block and its fixtures, verify stamps it, the index lists it, the lock records it.
+[!exec:python3] skip 'python3 is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+exec caveman-blocks add json-peek
+stdout '^added: .blocks/json-peek.py \(registry:json-peek@'
+stdout '^added: .blocks/fixtures/json-peek/sample.json$'
+stdout '^pass json-peek [0-9a-f]{12}$'
+stdout '^changed: .blocks/INDEX.md$'
+exists .blocks/fixtures/json-peek/sample.json
+
+# The stamp is the last table in the header.
+grep '^# \[stamp\]\n# verified = "[0-9a-f]{12}"\n# ///$' .blocks/json-peek.py
+grep '^json-peek +--path <path> \[--depth 2\] +Shape of a JSON' .blocks/INDEX.md
+grep '^json-peek +--path <path>' AGENTS.md
+grep '^\[json-peek\]$' .blocks/blocks.lock
+grep '^source = .registry:json-peek@' .blocks/blocks.lock
+grep '^hash = .[0-9a-f]{12}.$' .blocks/blocks.lock
+
+# A second add refuses without --force.
+! exec caveman-blocks add json-peek
+stderr 'exists; pass --force to overwrite'
+exec caveman-blocks add json-peek --force
+stdout '^pass json-peek'
+
+! exec caveman-blocks add no-such-block
+stderr 'no first-party block'

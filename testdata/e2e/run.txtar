@@ -1,0 +1,44 @@
+# run executes a block under the effects gate and path confinement; network needs a committed grant.
+[!exec:python3] skip 'python3 is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+exec caveman-blocks add json-peek
+exec caveman-blocks add http-json
+stdout '^skip http-json [0-9a-f]{12}: effect not allowed'
+stdout 'allow_effects = \["network"\]'
+exec git add -A
+exec git commit -q -m 'blocks: init'
+
+exec caveman-blocks run json-peek --path .blocks/fixtures/json-peek/sample.json
+stdout '^\{"kind": "object", "keys": \['
+! stdout '_unverified'
+
+! exec caveman-blocks run json-peek --path ../outside.json
+stderr 'path is outside the repo root'
+
+! exec caveman-blocks run http-json --url file://$WORK/repo/.blocks/fixtures/http-json/sample.json
+stderr 'add this line and commit it: allow_effects = \["network"\]'
+
+# An uncommitted grant grants nothing.
+cp ../network.toml .blocks/config.toml
+! exec caveman-blocks run http-json --url file://$WORK/repo/.blocks/fixtures/http-json/sample.json
+stderr 'allow_effects = \["network"\]'
+
+exec git commit -q -am 'blocks: allow network'
+exec caveman-blocks run http-json --url file://$WORK/repo/.blocks/fixtures/http-json/sample.json
+stdout '^\{"_unverified":true,"status": 200'
+
+exec caveman-blocks verify http-json
+stdout '^pass http-json'
+exec caveman-blocks run http-json --url file://$WORK/repo/.blocks/fixtures/http-json/sample.json
+stdout '^\{"status": 200'
+
+# Refused runs are not counted.
+exec caveman-blocks stats
+stdout '^block runs +3 +measured'
+
+-- network.toml --
+allow_effects = ["network"]

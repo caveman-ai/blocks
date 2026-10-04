@@ -1,0 +1,41 @@
+# section = "import": AGENTS.md gets the pointer, CLAUDE.md and GEMINI.md the import line.
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+exec git init -q repo
+cd repo
+cp ../config.toml .blocks/config.toml
+cp ../CLAUDE.md CLAUDE.md
+cp ../GEMINI.md GEMINI.md
+exec caveman-blocks sync
+stdout '^changed: AGENTS.md$'
+stdout '^changed: CLAUDE.md$'
+stdout '^changed: GEMINI.md$'
+cmp AGENTS.md ../want/AGENTS.md
+cmp CLAUDE.md ../want/CLAUDE.md
+grep '^@.blocks/INDEX.md$' GEMINI.md
+grep '^BLOCKS. Scripts' .blocks/INDEX.md
+
+exec caveman-blocks sync
+stdout '^sync: nothing changed$'
+
+-- repo/.blocks/.keep --
+-- config.toml --
+section = "import"
+-- CLAUDE.md --
+# Project notes
+
+Keep this line.
+-- GEMINI.md --
+Gemini notes.
+-- want/AGENTS.md --
+<!-- caveman-blocks:start -->
+Blocks: read .blocks/INDEX.md before writing a script.
+<!-- caveman-blocks:end -->
+-- want/CLAUDE.md --
+# Project notes
+
+Keep this line.
+
+<!-- caveman-blocks:start -->
+@.blocks/INDEX.md
+<!-- caveman-blocks:end -->

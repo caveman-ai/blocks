@@ -1,0 +1,56 @@
+# lint reports coded findings and exits 1 on any F code.
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+! exec caveman-blocks lint bad-fetch.py
+stdout '^F005 .*\(bad-fetch.py:16\)$'
+stdout '^F007 param "url" has no add_argument'
+! stdout '^W'
+
+exec caveman-blocks lint good-dir
+! stdout .
+
+-- bad-fetch.py --
+#!/usr/bin/env python3
+# /// block
+# name = "bad-fetch"
+# summary = "Fetch a URL but claim to only read."
+# effects = "read"
+# example = ["--url", "file:///dev/null"]
+#
+# [returns]
+# keys = ["status"]
+#
+# [params]
+# url = { type = "str", required = true }
+# ///
+import argparse
+import json
+import urllib.request
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--address")
+args = parser.parse_args()
+with urllib.request.urlopen(args.address) as r:
+    print(json.dumps({"status": r.status}))
+-- good-dir/count-lines.py --
+#!/usr/bin/env python3
+# /// block
+# name = "count-lines"
+# summary = "Count the lines of a file."
+# effects = "read"
+# example = ["--path", "$FIXTURES/a.txt"]
+#
+# [returns]
+# keys = ["lines"]
+#
+# [params]
+# path = { type = "path", required = true }
+# ///
+import argparse
+import json
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--path")
+args = parser.parse_args()
+with open(args.path, encoding="utf-8") as fh:
+    print(json.dumps({"lines": sum(1 for _ in fh)}))
