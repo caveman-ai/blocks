@@ -87,3 +87,30 @@ time.sleep(60)`, pidFile), blockfile.EffectExec)
 		t.Errorf("grandchild %d survived the timeout", pid)
 	}
 }
+
+// TestExecChildHoldsStdout: a block that prints its answer, exits 0 and leaves a child holding
+// stdout keeps its answer, and the child is killed.
+func TestExecChildHoldsStdout(t *testing.T) {
+	defer func(d time.Duration) { waitDelay = d }(waitDelay)
+	waitDelay = 300 * time.Millisecond
+	root := t.TempDir()
+	pidFile := filepath.Join(root, "pid")
+	b := fakeBlock(t, root, "bg", fmt.Sprintf(`import json, subprocess
+p = subprocess.Popen(["sleep", "60"])
+open(%q, "w").write(str(p.pid))
+print(json.dumps({"ok": True}), flush=True)`, pidFile), blockfile.EffectExec)
+	out, exit, err := Exec(context.Background(), root, "", b, nil, nil, nil)
+	if err != nil || exit != 0 || strings.TrimSpace(string(out)) != `{"ok": true}` {
+		t.Fatalf("Exec = %q, %d, %v", out, exit, err)
+	}
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, _ := strconv.Atoi(string(data))
+	time.Sleep(100 * time.Millisecond) // SIGKILL delivery
+	if err := syscall.Kill(pid, 0); err == nil {
+		exec.Command("kill", "-9", strconv.Itoa(pid)).Run()
+		t.Errorf("child %d survived the run", pid)
+	}
+}

@@ -282,11 +282,14 @@ func python310(out string) bool {
 	return major > 3 || major == 3 && minor >= 10
 }
 
+// waitDelay is how long Exec waits for stdout to close after the block exits.
+var waitDelay = 5 * time.Second
+
 // Exec runs `python3 <b.Path> args...` from root and returns the full stdout and exit code. The
 // environment is inherited plus PYTHONSAFEPATH=1, so a .blocks/json.py cannot shadow the stdlib,
 // and BLOCKS_OUT=outDir when set, where blocks write their logs. The block runs in its own process
-// group, killed whole when ctx ends or this process is interrupted. A non-zero exit is not an
-// error; ctx ending is.
+// group, killed whole when ctx ends or this process is interrupted, and after the block exits so
+// no child outlives the run. A non-zero exit is not an error; ctx ending is.
 //
 // ponytail: stdout is buffered in memory; stream to the spill file if blocks ever print gigabytes.
 func Exec(ctx context.Context, root, outDir string, b *blockfile.Block, args []string, stdin io.Reader, stderr io.Writer) ([]byte, int, error) {
@@ -307,13 +310,19 @@ func Exec(ctx context.Context, root, outDir string, b *blockfile.Block, args []s
 	if outDir != "" {
 		cmd.Env = append(cmd.Env, "BLOCKS_OUT="+outDir)
 	}
-	cmd.WaitDelay = 5 * time.Second
+	cmd.WaitDelay = waitDelay
 	killGroup(cmd)
 	cmd.Stdin = stdin
 	cmd.Stderr = stderr
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err = cmd.Run()
+	reapGroup(cmd)
+	// A child left holding stdout makes Wait give up after waitDelay with ErrWaitDelay even though
+	// the block exited 0; its answer stands when it is valid JSON.
+	if errors.Is(err, exec.ErrWaitDelay) && cmd.ProcessState.Success() && json.Valid(bytes.TrimSpace(out.Bytes())) {
+		err = nil
+	}
 	if ctx.Err() != nil {
 		return out.Bytes(), -1, fmt.Errorf("block %s: %w", b.Header.Name, ctx.Err())
 	}
