@@ -129,7 +129,12 @@ func runExample(root string, b *blockfile.Block, fixturesRoot string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 	var stderr bytes.Buffer
-	out, exit, err := runner.Exec(ctx, root, b, args, nil, &stderr)
+	outDir, err := os.MkdirTemp("", "caveman-blocks-verify-")
+	if err != nil {
+		return err.Error()
+	}
+	defer os.RemoveAll(outDir)
+	out, exit, err := runner.Exec(ctx, root, outDir, b, args, nil, &stderr)
 	if err != nil {
 		return err.Error()
 	}
