@@ -13,5 +13,5 @@ Count what the hook and runner see: scripts captured, hints shown, hints followe
 ## Consequences
 
 - Honest numbers from day one, consistent with Caveman's rule that measured, inferred and verified stay separate.
-- The north star for dogfood is heredocs per session before versus after install, from `blocks scan`.
+- The north star for dogfood is heredocs per session before versus after install, from `caveman-blocks scan`.
 - Weaker marketing claim than "saved $1,840". Accepted.

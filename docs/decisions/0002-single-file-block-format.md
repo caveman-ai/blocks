@@ -8,7 +8,7 @@ The spec proposed a folder per block with `block.toml`, `run.py`, `test.sh` and 
 
 ## Decision
 
-A block is one executable file. Its manifest is a TOML header in the PEP 723 inline-metadata shape with the type name `block`. The header holds name, summary, typed params, return shape, effects, the example call that doubles as the test, `matches` patterns for the scripts it replaces, provenance and the verification stamp. Full grammar in [FORMAT.md](../FORMAT.md). SKILL.md is an export, produced on demand by `blocks export`.
+A block is one executable file. Its manifest is a TOML header in the PEP 723 inline-metadata shape with the type name `block`. The header holds name, summary, typed params, return shape, effects, the example call that doubles as the test, `matches` patterns for the scripts it replaces, provenance and the verification stamp. Full grammar in [FORMAT.md](../FORMAT.md). SKILL.md is an export, produced on demand by `caveman-blocks export`.
 
 ## Consequences
 

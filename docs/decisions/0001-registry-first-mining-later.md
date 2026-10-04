@@ -13,5 +13,5 @@ Ship the eight authoring rules and a curated registry of first-party blocks writ
 ## Consequences
 
 - The shadcn analogy becomes true: the registry is the product people see first.
-- The repeat table from `blocks scan` is the first-minute win and also the evidence that decides whether mining is worth building.
+- The repeat table from `caveman-blocks scan` is the first-minute win and also the evidence that decides whether mining is worth building.
 - Risk: if first-party blocks are not used, the whole premise is wrong, and we learn that in weeks rather than after building a pipeline.

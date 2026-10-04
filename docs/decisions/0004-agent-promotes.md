@@ -8,7 +8,7 @@ The spec had a local merger with a small model writing canonical scripts and man
 
 ## Decision
 
-`blocks promote` produces a brief; the agent in the session writes the block file; `blocks lint`, `blocks verify` and `blocks sync` check it; the agent commits under the repo's policy (default: commit on the current non-default branch so the block rides in the existing pull request). The CLI contains no model calls. A headless mode drives the same brief through an agent's non-interactive CLI later.
+`caveman-blocks promote` produces a brief; the agent in the session writes the block file; `lint`, `verify` and `sync` check it; the agent commits under the repo's policy (default: commit on the current non-default branch so the block rides in the existing pull request). The CLI contains no model calls. A headless mode drives the same brief through an agent's non-interactive CLI later.
 
 ## Consequences
 
