@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "phase": "post",
+  "harness": "",
+  "session": "conv-1",
+  "call_id": "gen-7:8bf62622d4cf90a4",
+  "cwd": "/repo",
+  "command": "cat data/a.json"
+}

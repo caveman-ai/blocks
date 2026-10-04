@@ -1,0 +1,31 @@
+[
+  {
+    "name": "post replays the cached decision by call id with events emptied",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"phase": "post", "command": "cat a.json", "cwd": "/repo", "session": "s1", "call_id": "t1"},
+    "stub": {"dump": "json"},
+    "cache": {"call": {"hint": "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>", "events": [{"ts": "2026-10-03T12:00:00Z", "session": "s1", "kind": "hint", "block": "json-peek"}]}},
+    "expect": {"hint": "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>", "events": null}
+  },
+  {
+    "name": "post without a call id replays by hash of session, cwd and command",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"phase": "post", "command": "cat a.json", "cwd": "/repo", "session": "s1"},
+    "cache": {"cmd": {"hint": "cached hint", "events": [{"ts": "2026-10-03T12:00:00Z", "session": "s1", "kind": "hint"}]}},
+    "expect": {"hint": "cached hint", "events": null}
+  },
+  {
+    "name": "post with nothing cached is empty and runs no rule",
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true}]},
+    "input": {"phase": "post", "command": "cat a.json", "cwd": "/repo", "session": "s1", "call_id": "t9"},
+    "stub": {"dump": "json", "block_call": "json-peek"},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "post replays even when the caller found no repo root",
+    "cfg": {"repo_root": ""},
+    "input": {"phase": "post", "command": "cat a.json", "cwd": "/elsewhere", "session": "s1", "call_id": "t2"},
+    "cache": {"call": {"hint": "cached hint"}},
+    "expect": {"hint": "cached hint", "events": null}
+  }
+]

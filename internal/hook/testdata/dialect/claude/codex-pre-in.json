@@ -1,0 +1,13 @@
+{
+  "session_id": "019a-sess",
+  "turn_id": "turn-3",
+  "transcript_path": null,
+  "cwd": "/repo",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.5",
+  "tool_name": "Bash",
+  "tool_use_id": "call_9xY",
+  "tool_input": {
+    "command": "python3 -c 'import json'"
+  }
+}

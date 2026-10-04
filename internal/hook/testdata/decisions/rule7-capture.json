@@ -1,0 +1,41 @@
+[
+  {
+    "name": "a ten-line script with a shape is captured scrubbed",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "python3 - <<'EOF'\nKEY='sk-SECRET'\nEOF", "cwd": "/repo", "session": "s1"},
+    "stub": {"extract": {"body": "import json\nKEY='sk-SECRET'\n", "lines": 10, "fp": "aaaaaaaaaaaa", "script_sha": "sha1", "literals": ["sk-SECRET", "a.json"]}},
+    "expect": {"hint": "", "events": [{"kind": "script", "fp": "aaaaaaaaaaaa", "lines": 10}],
+               "sighting": {"fp": "aaaaaaaaaaaa", "script_sha": "sha1", "lines": 10, "script": "import json\nKEY='«scrubbed»'\n",
+                            "command_head": "python3 - <<'EOF'\nKEY='«scrubbed»'\nEOF", "literals": ["«scrubbed»", "a.json"]}}
+  },
+  {
+    "name": "nine lines is not captured",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s1"},
+    "stub": {"extract": {"body": "import json\n", "lines": 9, "fp": "aaaaaaaaaaaa"}},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "a body without a shape fingerprint is not captured",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s1"},
+    "stub": {"extract": {"body": "x = 1\n", "lines": 40, "fp": ""}},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "a failed append counts no script event",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s1"},
+    "stub": {"extract": {"body": "import json\n", "lines": 12, "fp": "aaaaaaaaaaaa"}, "append_err": true},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "the command head is cut to 200 characters after scrubbing",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "python3 - <<'EOF' # 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678934567890123456789 tail", "cwd": "/repo", "session": "s1"},
+    "stub": {"extract": {"body": "import csv\n", "lines": 11, "fp": "eeeeeeeeeeee", "script_sha": "sha2"}},
+    "expect": {"hint": "", "events": [{"kind": "script", "fp": "eeeeeeeeeeee", "lines": 11}],
+               "sighting": {"fp": "eeeeeeeeeeee", "script_sha": "sha2", "lines": 11, "script": "import csv\n",
+                            "command_head": "python3 - <<'EOF' # 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789", "literals": []}}
+  }
+]

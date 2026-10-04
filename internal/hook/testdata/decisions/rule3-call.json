@@ -1,0 +1,16 @@
+[
+  {
+    "name": "a block call counts a call event and returns",
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "matches": ["json\\.load"]}]},
+    "input": {"command": "caveman-blocks run json-peek --path a.json", "cwd": "/repo", "session": "s1"},
+    "stub": {"block_call": "json-peek", "dump": "json"},
+    "expect": {"hint": "", "events": [{"kind": "call", "block": "json-peek"}]}
+  },
+  {
+    "name": "a block call never carries the promote hint",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "python3 .blocks/first-error.py --path x.log", "cwd": "/repo", "session": "s1"},
+    "stub": {"block_call": "first-error", "shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 2}]},
+    "expect": {"hint": "", "events": [{"kind": "call", "block": "first-error"}]}
+  }
+]

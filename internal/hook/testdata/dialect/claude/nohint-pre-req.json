@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "phase": "pre",
+  "harness": "",
+  "session": "abc123",
+  "call_id": "toolu_02",
+  "cwd": "/repo",
+  "command": "ls"
+}

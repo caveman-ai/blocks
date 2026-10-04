@@ -1,0 +1,15 @@
+{
+  "session_id": "019a-sess",
+  "turn_id": "turn-4",
+  "cwd": "/repo",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "exec_command",
+  "tool_use_id": "call_9xZ",
+  "tool_input": {
+    "command": [
+      "bash",
+      "-lc",
+      "python3 - <<'EOF'\nimport json\nEOF"
+    ]
+  }
+}

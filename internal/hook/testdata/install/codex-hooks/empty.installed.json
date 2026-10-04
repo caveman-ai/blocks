@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/cb/caveman-blocks hook --harness codex",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
