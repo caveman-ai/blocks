@@ -177,12 +177,38 @@ func TestVerifySkips(t *testing.T) {
 	b = fakeBlock(t, root, "tool", `print('{"k": 1}')`, "k")
 	b.Header.Requires = []string{"definitely-not-a-binary-xyz"}
 	opts := stubs
-	opts.Check = true // a skip wins over a missing stamp
+	opts.Check = true
+	b.Header.Stamp = &blockfile.Stamp{Verified: testHash} // a current stamp: the skip stands
 	if o := Verify(root, b, nil, nil, opts); o.Status != Skip || !strings.Contains(o.Reason, "definitely-not-a-binary-xyz") {
 		t.Errorf("requires: %+v", o)
 	}
 	if read(t, b.Path) != `print('{"k": 1}')` {
 		t.Error("skip wrote the file")
+	}
+}
+
+// TestVerifyCheckJudgesStampBeforeSkip: in CI a pull request cannot land a hand-stamped or
+// quarantined block whose effect or tool is unavailable as a passing skip (docs/CI.md).
+func TestVerifyCheckJudgesStampBeforeSkip(t *testing.T) {
+	root := t.TempDir()
+	b := fakeBlock(t, root, "fetch", `print('{"k": 1}')`, "k")
+	b.Header.Effects = blockfile.EffectNetwork
+	opts := stubs
+	opts.Check = true
+	for _, st := range []*blockfile.Stamp{nil, {Verified: "deadbeef0000"}, {Verified: testHash, State: "quarantined"}} {
+		b.Header.Stamp = st
+		if o := Verify(root, b, nil, nil, opts); o.Status != Fail {
+			t.Errorf("stamp %+v: %+v", st, o)
+		}
+	}
+	b.Header.Stamp = &blockfile.Stamp{Verified: testHash}
+	if o := Verify(root, b, nil, nil, opts); o.Status != Skip {
+		t.Errorf("current stamp, effect not allowed: %+v", o)
+	}
+	// Outside Check mode a skip still comes first.
+	b.Header.Stamp = nil
+	if o := Verify(root, b, nil, nil, stubs); o.Status != Skip {
+		t.Errorf("non-check: %+v", o)
 	}
 }
 
