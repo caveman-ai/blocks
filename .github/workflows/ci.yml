@@ -19,5 +19,6 @@ jobs:
         with: { python-version: '3.12' }
       - run: make blocks-test
       - run: make blocks-verify
+      - run: go run ./cmd/caveman-blocks lint .blocks && go run ./cmd/caveman-blocks verify --check --all --policy-ref origin/main && go run ./cmd/caveman-blocks sync --check
       - run: make e2e
       - run: make bench-hook

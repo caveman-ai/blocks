@@ -1,0 +1,4 @@
+[grep-defs]
+source = 'registry:grep-defs@0.1.0'
+version = '0.1.0'
+hash = 'b636d7eecae2'
