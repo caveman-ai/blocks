@@ -12,5 +12,5 @@ Every block declares `effects` as one of `read`, `write-workspace`, `exec`, `net
 
 ## Consequences
 
-- The promise "blocks do what they declare" is enforced at promotion (lint) and at call (hook), not by isolation.
+- The promise "blocks do what they declare" is enforced at promotion (lint) and at call (runner), not by isolation.
 - A malicious block that lies in its header and hides its imports is not caught by v0. CODEOWNERS on `.blocks/` and PR review are the mitigation; a sandbox can be added behind the same `effects` field later.

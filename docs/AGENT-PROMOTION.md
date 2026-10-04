@@ -40,8 +40,8 @@ needs one, then:
 ```
 caveman-blocks lint .blocks/<name>.py
 caveman-blocks verify <name>
-caveman-blocks sync
-git add .blocks AGENTS.md && git commit -m "blocks: add <name>"
+caveman-blocks sync            # prints every file it changed
+git add <those files> .blocks && git commit -m "blocks: add <name>"
 ```
 
 In v0 the commit policy is text in the brief: commit on the current branch, which must not be the
@@ -49,8 +49,8 @@ repository's default branch. `lint` emits `W001` on the default branch, found fr
 `init.defaultBranch`, then `main` or `master`. The block rides in whatever pull request the branch
 becomes. A `promote = "pr"` policy that branches and opens a pull request is phase 2.
 
-`verify` success records the shape's `fp` and the block name in `stats.jsonl`; `promote` stops listing a
-shape once a block carries its `fp` in `provenance.source`.
+`verify` records a `verify{block, ok}` event; `promote` stops listing a shape once a block carries its
+`fp` in `provenance.source`.
 
 ## Headless promotion
 

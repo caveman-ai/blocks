@@ -65,16 +65,21 @@ spills the full text to the state dir and records a `run` event with full and re
 
 **Promotion.** See [AGENT-PROMOTION.md](AGENT-PROMOTION.md). The agent writes the block; the CLI checks it.
 
-**Verification.** `verify <name>|--changed|--all` runs each block's `example` from the repo root with
-`$FIXTURES` expanded, requires exit 0, exactly one JSON object under 2 KB containing every `returns.keys`
-entry, then writes `verified = "<content-hash>"`. A failure writes `state = "quarantined"`. Both writes
-are local; the agent or person commits them. In CI, `verify --check` recomputes hashes and reruns
-examples, writes nothing, and fails the pull request on any mismatch, failure or disallowed effect.
-`--changed` compares against the merge base with the default branch.
+**Verification.** `verify [name|--changed|--all]` (default `--changed`, or `--all` outside git) runs
+each block's `example` from the repo root with `$FIXTURES` expanded, requires exit 0, exactly one JSON
+object under 2 KB containing every `returns.keys` entry, then writes the `[stamp]` table with the
+content hash and removes any `state`. A failure writes `state = "quarantined"`. A disallowed effect or a
+missing `requires` binary is a skip, reported, never stamped. Writes are local; the agent or person
+commits them. In CI, `verify --check --all --policy-ref origin/<base>` recomputes hashes, reruns
+examples under the base branch's `allow_effects`, writes nothing, and fails on a hash mismatch, an
+example failure, or a committed quarantined block; skips are listed and pass. `--changed` selects
+blocks whose file or fixture directory differs from the merge base with the default branch, which needs
+`fetch-depth: 0`. See [CI.md](CI.md).
 
-**Sync.** `sync` renders the index from blocks whose stamp matches their content, writes `INDEX.md`, the
-`AGENTS.md` section and the import lines, enforces the 3 KiB budget, and refreshes exports. `sync --check`
-fails in CI when any generated text is stale. Text outside the markers is never touched.
+**Sync.** `sync` renders the index from blocks whose stamp matches their content, writes `INDEX.md`,
+the `AGENTS.md` section and the import lines, enforces the 4 KiB budget, refreshes exports where an
+export directory already exists, and prints the files it changed so the agent can stage them.
+`sync --check` fails in CI when any generated text is stale. Text outside the markers is never touched.
 
 **Scan.** `scan` reads the transcripts each harness keeps, applies the same extraction, edit filter,
 scrub and shape fingerprint as the hook, groups by shape and prints the repeat table with the first-party
@@ -82,21 +87,25 @@ blocks that would cover each group. Works before anything is installed. Readers 
 versioned per harness because the formats are documented as internal.
 
 **Add.** `add <name>` copies the embedded block to `.blocks/<name>.py` and its fixtures to
-`.blocks/fixtures/<name>/`, strips any `verified` line, records `source`, `version` and the content hash
-in `blocks.lock`, runs `verify` and `sync`.
+`.blocks/fixtures/<name>/`, records `source`, `version` and the content hash in `blocks.lock`, runs
+`verify` and `sync`, and prints the `allow_effects` line when the block's effect is not yet allowed.
+Nothing reads the lock in v0; it exists so phase 2's `diff` and `update` have provenance.
 
 ## Formats on disk
 
 - Block file: [FORMAT.md](FORMAT.md).
-- `config.toml`: `promote = "commit"`, `allow_effects = []`, `index_max = 25`, `hint = true` (set
-  `false` to keep capture and stats but emit no hints). Every key has a default; the file is optional.
+- `config.toml`: `promote = "commit"`, `allow_effects = []`, `index_max = 20`, `section = "inline"`,
+  `hint = true` (set `false` to keep capture and stats but emit no hints). Every key has a default; the
+  file is optional. The hook reads it from the working tree; the runner's effects gate reads it from
+  `HEAD` or `--policy-ref`.
 - `blocks.lock`: TOML, one table per first-party block: `source`, `version`, `hash` (content hash minus
   stamp lines, so `verify` does not alter it).
 - `INDEX.md`: generated; identical to the `AGENTS.md` section.
 - State dir layout, sighting schema and scrub list: [HOOK.md](HOOK.md#state-directory).
 - `stats.jsonl`: one object per event: `ts`, `session`, `kind` (`script`, `hint`, `promote-hint`,
-  `run`), `block`, `fp`, and for `run` events `bytes_full`, `bytes_returned`, `exit`. Only the runner
-  writes `run`. "Hint followed" is a `run` of the hinted block later in the same session.
+  `call`, `run`, `verify`), `block`, `fp`, `ok`, and for `run` events `bytes_full`, `bytes_returned`,
+  `exit`. The hook writes `script`, `hint`, `promote-hint` and `call`; the runner writes `run`; `verify`
+  writes `verify`. "Hint followed" is a `call` of the hinted block after a `hint` in the same session.
 
 ## Install and distribution
 
@@ -111,8 +120,8 @@ in `blocks.lock`, runs `verify` and `sync`.
 ## Performance budget
 
 The hook runs on every shell call. Budget: 5 ms for rule 1, 30 ms for a full decision, measured on a 2020
-laptop in CI's `bench-hook`. All `matches` patterns in a repo are compiled per process, so the index cap
-is also a latency cap.
+laptop in CI's `bench-hook`. Only indexed blocks' `matches` patterns are compiled, per process, so the
+index cap is also a latency cap.
 
 ## Security boundaries
 
@@ -122,6 +131,7 @@ is also a latency cap.
 - Effects are read from committed config at `HEAD`, enforced in the runner, and are hygiene rather than
   a security boundary; see [FORMAT.md](FORMAT.md#effects).
 - Captured scripts are scrubbed before storage and shown scrubbed in the promotion brief.
-- `verify` refuses disallowed effects, so CI on a fork pull request runs only `read`, `write-workspace`
-  and `exec` blocks inside the CI container, under `on: pull_request` with no secrets.
+- `verify --check` in CI reads `allow_effects` from the base branch, so a fork pull request runs only
+  the effects the base branch already allows, inside the CI container, under `on: pull_request` with no
+  secrets.
 - Nothing is sent anywhere. No telemetry.

@@ -4,7 +4,7 @@ Date: 2026-10-03. Status: accepted.
 
 ## Context
 
-The spec used three hook events (observe runs, inject at session start, intercept pre-run) plus an interceptor. A hook-free design was considered and rejected because it loses enforcement and automatic capture. The scan shows every agent script passes through the shell tool as a heredoc or inline script, so the pre-run of that tool sees everything.
+The spec used three hook events (observe runs, inject at session start, intercept pre-run) plus an interceptor. A hook-free design was considered and rejected because it loses in-session hints and automatic capture. The scan shows every agent script passes through the shell tool as a heredoc or inline script, so the pre-run of that tool sees everything.
 
 ## Decision
 

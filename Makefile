@@ -17,4 +17,4 @@ bench-hook: build
 	@echo "bench-hook: latency budget test lands in phase 1"; exit 0
 
 check-instructions:
-	cmp AGENTS.md CLAUDE.md
+	test ! -e CLAUDE.md

@@ -11,7 +11,7 @@ one job, and a data-driven profile so that most new harnesses are a config entry
 
 ## Layer 1: the generic protocol
 
-The binary speaks one normalized JSON contract on `blocks hook --harness generic`. Every native adapter is a
+The binary speaks one normalized JSON contract on `caveman-blocks hook --harness generic`. Every native adapter is a
 translation to and from it. Any agent, plugin or wrapper that can run a process and pass JSON can integrate
 by speaking this directly, with no code in this repository.
 
@@ -25,7 +25,7 @@ Request:
 Response:
 
 ```json
-{ "protocol": 1, "action": "allow", "reason": "", "hint": "Blocks: json-peek covers this. Next time: blocks run json-peek --path x.json" }
+{ "protocol": 1, "action": "allow", "reason": "", "hint": "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path x.json" }
 ```
 
 - `phase` is `pre` or `post`. `output` is set only on `post` and only by harnesses that provide it.
@@ -48,7 +48,7 @@ dialects than harnesses because several harnesses accept the same shapes:
 | `generic` | anything else | `action` | `hint` | `hint` |
 
 Dialects live in `internal/hook/dialect/<name>` and each is under 150 lines: a struct for the input, a
-struct for the output, two functions. Conformance fixtures under `testdata/hook/dialect/<name>/` hold
+struct for the output, two functions. Conformance fixtures under `internal/hook/testdata/dialect/<name>/` hold
 real request and response pairs taken from the harness docs, so a dialect change that breaks a harness
 fails a test here, not in a user's session.
 
@@ -87,7 +87,7 @@ skills_dir = ".agents/skills"
 transcripts = "~/.cursor/projects/*/agent-transcripts/*/*.jsonl"
 ```
 
-`hooks install`, `hooks status`, `sync`, `export` and `scan` read the profile and nothing else. Adding a
+`hooks install`, `hooks status`, `export` and `scan` read the profile and nothing else; `sync` is driven by which instruction files exist (HOOK.md). Adding a
 harness that speaks an existing dialect and an existing config format is one table. A harness with a new
 config file shape needs one `config_format` writer, a small function that knows how to insert and remove
 our entry idempotently, identified by a marker key.
@@ -96,11 +96,11 @@ our entry idempotently, identified by a marker key.
 
 The engine does not know which harness it serves. The profile's capabilities decide what the user gets:
 
-| Tier | Capabilities | What works | Harnesses today |
-|---|---|---|---|
-| A | `pre-hint` | everything, one event | Claude Code, Codex CLI |
-| B | `post-hint` | everything, two events | Cursor, Copilot CLI, Gemini CLI |
-| C | none | rules, index, exports; no capture, no hints, no denies | Amp, OpenCode, Cline, anything that reads AGENTS.md |
+| Tier | Capabilities | What works | Harnesses | Phase |
+|---|---|---|---|---|
+| A | `pre-hint` | everything, one event | Claude Code, Codex CLI | 1 |
+| B | `post-hint` | everything, two events | Cursor (1), Copilot CLI (2), Gemini CLI (2) | 1–2 |
+| C | none | rules, index, exports; no capture, no hints | Amp, OpenCode, Cline, anything that reads AGENTS.md | always |
 
 Tier C is not a degraded mode to apologize for. It is the passive layer every harness gets, and it is
 what makes the repo useful to a teammate who has not installed anything.
@@ -108,8 +108,8 @@ what makes the repo useful to a teammate who has not installed anything.
 ## Plugin shims for Tier C harnesses
 
 Amp, OpenCode and Cline expose plugin APIs rather than file hooks. Moving one to Tier A or B is a shim
-of about 20 lines in the harness's plugin language that forwards the call to `blocks hook --harness
-generic` and maps the response. Reference shims will live under `integrations/<harness>/` with their own
+of about 20 lines in the harness's plugin language that forwards the call to `caveman-blocks hook
+--harness generic` and maps the response. Reference shims will live under `integrations/<harness>/` with their own
 conformance fixture. They are optional and separately versioned; the binary never depends on them.
 
 ## The checklist for a new harness
@@ -119,7 +119,7 @@ conformance fixture. They are optional and separately versioned; the binary neve
 2. If not, write the dialect: two structs, two functions, fixtures.
 3. If its config file shape is new, write the `config_format` writer with install, uninstall and status.
 4. Add the transcript reader to `internal/scan/reader/<harness>` if transcripts exist and are useful.
-5. Run `make conformance`, which replays every fixture through the real binary.
+5. Run `make e2e`, which replays every conformance fixture through the real binary.
 6. Add a row to the table in [HOOK.md](HOOK.md) and the research record with the doc URLs and date.
 
 ## What stays out of the adapters

@@ -10,7 +10,7 @@ Two commands install it: `init` in the repo, `hooks install` once per machine.
 ## The claim
 
 Prose cannot be checked. Code can. A skill or a memory note drifts into confident noise because nothing
-runs it. A block has an exit code, a typed contract, and a commit it last passed on. That one property is
+runs it. A block has an exit code, a checkable contract, and a content hash it last passed with. That one property is
 what lets Blocks capture, verify, rank and retire knowledge without a human curating prose.
 
 ## What the data says (this machine, Aug–Oct 2026)
@@ -50,7 +50,7 @@ Full numbers and method: [research/transcript-scan-2026-10-03.md](research/trans
 
 - No public hub for user blocks. The only public thing is the first-party registry this repo ships.
 - No cross-repo or org-wide sharing. A block is visible to exactly the people who can see the repo.
-- No sandbox in v0. Side effects are declared in the header and enforced at the call site by the hook.
+- No sandbox in v0. Side effects are declared in the header and enforced by the runner from committed policy.
 - No model calls inside the CLI. The agent the user already runs does the thinking.
 
 ## Origin

@@ -31,9 +31,12 @@ v0 supports Python 3.10 or later only. Shell and JavaScript blocks are later, ad
 # created = "2026-10-03"
 # source = "registry:json-peek@0.1.0"
 #
+# [stamp]
 # verified = "3f9a1c2b7d4e"
 # ///
-import argparse, json, sys
+import argparse
+import json
+import sys
 ...
 print(json.dumps(answer))
 ```
@@ -60,13 +63,15 @@ print(json.dumps(answer))
 | `[params]` | no | author | One table per parameter: `type` (`str`, `int`, `float`, `bool`, `path`, `enum`), `required` or `default`, optional `help`, `min`, `max`, `values` for `enum`. `path` values must resolve inside the repo root; the runner rejects others. |
 | `requires` | no | author | Executables the block needs on `PATH`, for example `["pytest"]`. `verify` and `run` fail early with a clear message when one is missing. |
 | `[provenance]` | no | author | `created`, `source` (`registry:<name>@<version>` or `candidate:<fp>`), `sessions`. `promote` prints a proposed table for the agent to paste; nothing updates it afterwards. |
-| `verified` | no | tool | 12 hex characters: SHA-256 of the file with the `verified` and `state` lines removed, truncated. Written by `verify` on success. A block is in the index only when this value matches the current content. |
-| `state` | no | tool | Absent means active. `"quarantined"` is written by `verify` on failure. |
+| `[stamp]` | no | tool | The only table the tool writes. Always last in the header. `verified`: 12 hex characters of the content hash below. `state`: absent means active; `"quarantined"` is written on failure and removed on the next success. |
 
-The tool writes exactly two keys, `verified` and `state`, always as the last lines of the header, and
-never rewrites any other line. A stamp is a content hash, not a commit, so verifying the same content
-twice is a no-op and the committed file never churns. Editing a block invalidates its stamp until
-`verify` runs again locally.
+The content hash is SHA-256, truncated to 12 hex, over: the block file with CRLF normalized to LF and
+the lines from `# [stamp]` to the closing fence removed, followed by the sorted list of
+`(relative path, SHA-256)` for every file under `.blocks/fixtures/<name>/`. A fixture edit therefore
+invalidates the stamp too. A block is in the index only when `verified` equals the current hash. The
+tool rewrites the `[stamp]` table and nothing else, so verifying unchanged content is a no-op and the
+committed file never churns. `blocks.lock` records the same hash for first-party blocks. `add` strips
+the table before writing, and the embedded copies carry none.
 
 ## Effects
 
@@ -80,8 +85,13 @@ twice is a no-op and the committed file never churns. Editing a block invalidate
 
 Enforcement is in the runner. `caveman-blocks run` reads `allow_effects` from the committed
 `config.toml` at `HEAD` (`git show HEAD:.blocks/config.toml`), never from the working tree, so an
-agent cannot grant itself an effect by editing the file; the grant has to be committed and therefore
-reviewed. `verify` applies the same gate and refuses to run a disallowed block.
+uncommitted edit grants nothing. In CI, `verify --check --policy-ref origin/<base>` reads the policy
+from the base branch, so a pull request cannot grant itself an effect either. `verify` applies the same
+gate: a block whose effect is not allowed is reported as `skipped (effect not allowed)`, is not stamped,
+and is not a failure. `add` prints the one-line grant a skipped block needs. The effect ladder for the
+lint floor is `read < write-workspace < exec < network < external`; a block declares the highest rung it
+reaches. Blocks write their logs to the state dir, not the repo, so running tests is `exec`, not
+`write-workspace`.
 
 Lint infers a floor from the source: `urllib`, `http.client`, `socket`, `requests`, `httpx` imply
 `network`; `subprocess`, `os.system`, `os.exec*` imply at least `exec`; file writes imply at least
@@ -106,6 +116,12 @@ request review, and the fact that nothing in `.blocks/` runs unless an agent or 
 - Composition: a block calls another block with `caveman-blocks run <name> ...` and parses the JSON.
   There is no shared library.
 - The runner invokes `python3 <file>` from the repo root; the file does not need an executable bit.
+- The runner executes a block whether or not its stamp is current, because an agent iterates on a
+  block before verifying it. When the stamp is missing, stale or quarantined, the answer gains
+  `"_unverified": true`. `verify`'s own example runs emit no `run` events.
+- `$FIXTURES` expands to the absolute path of `.blocks/fixtures/<name>`, so `file://$FIXTURES/x.json` is
+  a valid URL. Fixtures are data only, at most 64 KiB per block, never test sources a user's test runner
+  would collect.
 
 ## The eight rules
 
@@ -126,8 +142,9 @@ BLOCKS. Scripts in this repo are reusable blocks in .blocks/. Rules:
 
 ## Index and managed section
 
-`sync` renders one line per indexed block, sorted by name, into `.blocks/INDEX.md` and into the
-`AGENTS.md` section bounded by `<!-- caveman-blocks:start -->` and `<!-- caveman-blocks:end -->`:
+`sync` renders the section body, the eight rules followed by one line per indexed block sorted by name,
+into `.blocks/INDEX.md` and, byte-identical, between `<!-- caveman-blocks:start -->` and
+`<!-- caveman-blocks:end -->` in `AGENTS.md`. Index lines look like:
 
 ```
 json-peek      --path <path> [--depth 2]       Shape of a JSON or JSONL file: keys, row count, one sample.
@@ -135,9 +152,15 @@ json-peek      --path <path> [--depth 2]       Shape of a JSON or JSONL file: ke
 
 A block is indexed when it is active (no `state`) and its `verified` stamp matches its content.
 Sorted by name so the text is deterministic across machines. The whole section, rules included, has a
-byte budget of 3 KiB enforced by `sync`; the default `index_max` is 25 lines and each line is cut at 110
-characters. Exceeding the budget fails `sync` with a request to retire blocks or shorten summaries.
-Quarantined and unverified blocks are not listed; `caveman-blocks stats` shows them.
+byte budget of 4 KiB enforced by `sync`; the default `index_max` is 20 lines and each line is cut at 110
+characters on a word boundary with `…`. Exceeding the budget fails `sync` with a request to retire blocks
+or shorten summaries. Quarantined and unverified blocks are not listed; `caveman-blocks stats` shows them.
+
+`config.toml` key `section = "inline" | "import"` chooses how instruction files carry it. `inline` is the
+default described above. `import` writes only the markers and `@.blocks/INDEX.md` into `CLAUDE.md` and
+`GEMINI.md`, and the markers plus one line, `Blocks: read .blocks/INDEX.md before writing a script.`,
+into `AGENTS.md`, for repos with a hard size cap on their instruction files. Codex has no import syntax,
+so in `import` mode it pays one file read per session.
 
 ## Lint rules
 
@@ -149,12 +172,12 @@ Quarantined and unverified blocks are not listed; `caveman-blocks stats` shows t
 | F004 | `summary` one line, at most 100 characters |
 | F005 | `effects` is a known value and not below the inferred floor |
 | F006 | `example` is a non-empty array of strings |
-| F007 | Declared params and `add_argument` names match both ways |
+| F007 | Declared params and `add_argument` names match both ways (`--help` excepted) |
 | F008 | `matches` patterns compile as RE2 |
 | F009 | No absolute home paths (`/Users/`, `/home/`, `C:\Users\`) in the source |
 | F010 | `json.dumps` appears and no other `print` or `sys.stdout.write` targets stdout |
 | F011 | `returns.keys` non-empty |
-| F012 | First-party blocks only: imports are standard library |
+| F012 | `--first-party` only (used by this repo's CI): imports are standard library, one import per line, `ruff check` clean with defaults |
 | W001 | Warning: current branch is the repository's default branch (see AGENT-PROMOTION) |
 
 ## Export

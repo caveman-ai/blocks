@@ -30,35 +30,48 @@ Rules, in order. Hints do not stack; the first rule that produces one wins.
 
 | # | Condition | Effect |
 |---|---|---|
-| 1 | No `.blocks/` in `Cwd` or its parents | Return. No events. Budget 5 ms. |
-| 2 | Same `(Session, Cwd, Command)` seen in the last 2 seconds | Return. Dedupes harnesses that load two hook configurations for one call. |
-| 3 | Command contains an inline script: heredoc to `python`/`python3`/`node`/`bash`/`sh`, `python -c`, `node -e`, `bash -c` | Extract the body; continue. Any length. |
-| 4 | Body is an edit: reads a file, replaces a string or regex, writes the same path | Mark `edit`; never captured; continue to rule 5 |
-| 5 | Body matches a block's `matches` pattern (RE2, tested against the body) | Hint: `Blocks: <name> covers this. Next time: caveman-blocks run <name> --<param> ...` using the block's required params. Event `hint{block, fp}`. |
-| 6 | Body is 10+ lines and not `edit` | Capture one sighting to the state dir (below). Event `script{fp, lines}`. |
-| 7 | Command reads a structured file whole: `cat`/`head`/`tail`/`less` of `.json`, `.jsonl`, `.ndjson`, `.log`, `.csv` | Hint naming `json-peek`, `jsonl-stats` or `first-error`. Event `hint`. |
-| 8 | A candidate shape has sightings from 2+ sessions, or 5+ shapes exist, and no promote hint in this session | Append ` Run caveman-blocks promote when the task is done.` to the hint, or emit it alone. Event `promote-hint`. |
+| 0 | `Phase` is post | Skip every rule; replay the cached decision for this call from `cache/` with events emptied. |
+| 1 | No `.blocks/` in `Cwd` or its parents | Return. No events. Budget 5 ms. The nearest parent holding `.blocks/` is the repo root for every later rule. |
+| 2 | Same `(Session, Cwd, Command)` seen in the last 2 seconds | Return the cached decision with events emptied. Dedupes harnesses that load two hook configurations for one call. |
+| 3 | Command is `caveman-blocks run <name> ...` or `python3 .blocks/<name>.py ...` | Event `call{block}`. Return. This is how "hint followed" gets a session. |
+| 4 | Command contains an inline Python script: heredoc to `python`/`python3`, or `python -c`. A leading `bash -lc '...'`/`sh -c '...'` wrapper from the harness is unwrapped first. | Extract the body; continue. Any length. Other languages are not extracted in v0 (blocks are Python-only). |
+| 5 | Body is an edit: reads a file, replaces a string or regex, writes the same path | Mark `edit`; continue. Edits are never captured. |
+| 6 | Body matches a `matches` pattern of an indexed block, tested against the body. When `edit`, only blocks with `effects = "write-workspace"` are considered. Several hits: longest match wins, then name. | Hint: `Blocks: <name> covers this. Next time: caveman-blocks run <name> --<param> ...` using the block's required params. Event `hint{block, fp}`. Skip rule 7. |
+| 7 | Body is 10+ lines and not `edit` | Capture one sighting to the state dir (below). Event `script{fp, lines}`. |
+| 8 | Command reads a structured file whole: `cat`/`head`/`tail`/`less` of `.json`, `.jsonl`, `.ndjson`, `.log`, `.csv` | Hint naming the indexed block among `json-peek`, `jsonl-stats`, `first-error` that fits. If none is installed, hint `caveman-blocks add <name>` once per session. Event `hint`. |
+| 9 | Evaluated on every call after the rules above: a shape with sightings from 2+ sessions in the last 14 days that no block's `provenance.source` names, or 5+ such shapes, and no promote hint yet this session | Append ` Run caveman-blocks promote when the task is done.` to the hint, or emit it alone. Event `promote-hint`. |
 
-Normalization for the shape fingerprint `fp`: strip string literals, numbers and path-like tokens,
-collapse whitespace, then take sorted import names plus the occurrences of a fixed call-name table
-committed at `internal/capture/callnames.go` (`json.load`, `json.loads`, `json.dump`, `open`, `print`,
-`re.sub`, `re.findall`, `re.search`, `Counter`, `glob`, `os.walk`, `subprocess`, `sys.argv`, `argparse`,
-`urllib`, `requests`, `csv`, `yaml`, `pathlib`, `sqlite3`, `psycopg`, `time.sleep`). The table is data;
-changing it is a golden-table change.
+The hook reads `config.toml` and the block headers from the working tree, never through `git`, to stay
+inside the budget. Only the runner's effects gate reads committed policy.
+
+Two identities per body. `script_sha` is SHA-256 of the body with string literals, numbers and
+path-like tokens stripped and whitespace collapsed; it says "the same script again" and feeds the
+literal vector in a sighting. `fp`, the shape fingerprint, is the first 12 hex of SHA-256 over
+`"py|" + sorted import names + call names with counts bucketed to 1, 2, 3+`, where call names come from
+a fixed table committed at `internal/capture/callnames.go` (`json.load`, `json.loads`, `json.dump`,
+`open`, `print`, `re.sub`, `re.findall`, `re.search`, `Counter`, `glob`, `os.walk`, `subprocess`,
+`sys.argv`, `argparse`, `urllib`, `requests`, `csv`, `yaml`, `pathlib`, `sqlite3`, `psycopg`,
+`time.sleep`). A body with no imports and no table hits has no `fp` and is not captured. The table is
+data; changing it is a golden-table change.
 
 ## State directory
 
 The hook writes nothing inside the repository. All runtime state lives under
 `$XDG_STATE_HOME/caveman-blocks/<repo-id>/` (default `~/.local/state/caveman-blocks/<repo-id>/`), where
-`<repo-id>` is the first 16 hex of SHA-256 of the repo root's absolute path:
+`<repo-id>` is the first 16 hex of SHA-256 of `git rev-parse --path-format=absolute --git-common-dir`
+run at the repo root, so every worktree of one repository shares state, falling back to the root's
+absolute path outside git:
 
 ```
 candidates/<fp>.jsonl   one line per sighting: {ts, session, script_sha, lines, literals: [...], command_head}
 out/<id>.log            full block outputs written by the runner
 stats.jsonl             counted events
 hook.log                internal errors, rate limited to one line per minute
-cache/                  2-second dedupe keys
+cache/                  per-call decisions for dedupe and post-run replay
 ```
+
+The runner prunes `out/` entries older than 7 days and `cache/` entries older than 1 hour, at most once
+a day, on its own invocations.
 
 Files are opened with `O_APPEND|O_NOFOLLOW` and created `0600`. A cloned repository therefore cannot
 point the hook at a file of its choosing: the hook only reads `.blocks/`, and it refuses to read through
@@ -76,7 +89,10 @@ the agent's command. Internal errors go to `hook.log` and the decision is empty.
 
 `hooks install` copies the binary to `~/.local/share/caveman-blocks/bin/caveman-blocks` and writes that
 absolute path into the harness configuration. It refuses to write a path under an npm or npx cache,
-which is garbage collected and would leave a dangling hook. `doctor` checks the path still resolves.
+which is garbage collected and would leave a dangling hook. `init`, `sync` and `doctor` compare the
+copy's version with the invoking binary and refresh it by writing a temp file and renaming, never in
+place, so a running hook is not disturbed. `doctor` reports version skew and a path that no longer
+resolves.
 
 ## Delivery of the hint
 
@@ -84,7 +100,11 @@ Claude Code and Codex accept `additionalContext` on an allowed pre-run call and 
 the tool result. Cursor, Copilot and Gemini have no context field on their pre-run event, only on the
 post-run one. The hint arrives at the same moment on every harness, with the tool result. On the latter
 three the adapter registers a second, post-run event that replays the pre-run decision from
-`cache/` keyed by `CallID`, or by `hash(Session, Cwd, Command)` when the harness gives no id.
+`cache/` keyed by `CallID`, or by `hash(Session, Cwd, Command)` when the harness gives no id. Rule 2's
+dedupe returns the cached decision rather than an empty one, so whichever of two loaded hook
+configurations runs first, the post-run event finds a hint to deliver. Codex's `tool_input.command`
+shape (string or argv) is pinned by a conformance fixture, and rule 4 unwraps the harness's own shell
+wrapper before looking for a script.
 
 ## Adapters
 
@@ -105,13 +125,16 @@ wrote, identified by a marker key.
 
 ## Instruction files
 
-`sync` writes the managed section once, into `AGENTS.md` at the repo root, creating the file if needed.
-Where `CLAUDE.md` or `GEMINI.md` exist at the root, `sync` adds one import line, `@.blocks/INDEX.md`,
-between the same marker comments instead of a copy, because Claude Code reads `AGENTS.md` only when no
-`CLAUDE.md` exists and Gemini reads `GEMINI.md` by default; both support `@` imports (Gemini's import
-support must be confirmed during phase 1; fall back to a copy if not). `INDEX.md` and the `AGENTS.md`
-section carry identical text. Harnesses that read several of these files see one copy and one or two
-import lines, not three copies.
+`sync` is driven by which files exist at the repo root, not by the harness profile. It writes the
+managed section once, into `AGENTS.md`, creating the file if needed. Where `CLAUDE.md` or `GEMINI.md`
+exist at the root, it adds one import line, `@.blocks/INDEX.md`, between the same marker comments
+instead of a copy, because Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists and Gemini reads
+`GEMINI.md` by default; both document `@` imports, pinned by a fixture in phase 1. `INDEX.md` holds the
+full section body, byte-identical to the text between the `AGENTS.md` markers. `sync` never creates a
+`CLAUDE.md`; `doctor` warns when a `CLAUDE.md` exists in a parent directory but not at the root, since
+Claude Code would then read neither file, and suggests a root `CLAUDE.md` containing `@AGENTS.md`.
+Harnesses that read several of these files see one copy and one or two import lines. `section = "import"`
+(FORMAT.md) covers repos with hard size caps.
 
 | Harness | Reads by default |
 |---|---|

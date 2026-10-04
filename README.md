@@ -4,7 +4,7 @@ Your agents write the same scripts every session. Blocks makes them write each o
 
 A block is one executable file in your repo's `.blocks/` folder with a typed header: parameters, the
 shape of the JSON answer it returns, the side effects it is allowed, an example call that doubles as its
-test, and the commit it last passed on. Agents call blocks instead of rewriting them. Blocks never
+test, and the content hash it last passed with. Agents call blocks instead of rewriting them. Blocks never
 leave the repo.
 
 ```
@@ -20,7 +20,7 @@ Status: foundation. The design is written; the binary is not. Start with [docs/T
 
 - **Rules.** Eight short lines in your instruction file teach agents to write scripts that take
   parameters, return a small JSON answer, and import existing blocks.
-- **Index.** One line per block, in the same file, in the cached prompt prefix. At most forty.
+- **Index.** One line per block, in the same file, in the cached prompt prefix. At most twenty by default.
 - **Hook.** One pre-run hook on the shell tool. It captures scripts agents write and hints when one matches
   a block. It never denies or rewrites a command, and it writes nothing inside your repo.
 - **Promotion.** The agent in the session turns a captured script into a block from a `promote` brief,
@@ -40,6 +40,7 @@ Status: foundation. The design is written; the binary is not. Start with [docs/T
 | [docs/HOOK.md](docs/HOOK.md) | Decision engine and per-harness adapters |
 | [docs/INTEGRATION.md](docs/INTEGRATION.md) | Generic protocol, dialects, profiles: adding an agent in an afternoon |
 | [docs/AGENT-PROMOTION.md](docs/AGENT-PROMOTION.md) | How an agent promotes a candidate |
+| [docs/CI.md](docs/CI.md) | The CI step for repos that use Blocks |
 | [docs/REPOSITORY.md](docs/REPOSITORY.md) | Repo layout and tech stack |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and gates |
 | [docs/decisions/](docs/decisions/README.md) | Decision records |

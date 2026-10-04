@@ -8,7 +8,7 @@ The spec measured lift with a 10% holdout of sessions and a per-block holdout. H
 
 ## Decision
 
-Count what the hook and runner see: scripts captured, hints shown, hints followed, exact repeats denied, block calls, and for each block call the bytes of full output written to `.out/` against the bytes returned. Report them as measured counts with those labels. Never print a dollar figure or a percentage saving in v0. A control-group method may return with a team layer that has the scale for it.
+Count what the hook and runner see: scripts captured, hints shown, hints followed, block calls, and for each block run the bytes of full output written to the state dir against the bytes returned. Report them as measured counts with those labels. Never print a dollar figure or a percentage saving in v0. A control-group method may return with a team layer that has the scale for it.
 
 ## Consequences
 

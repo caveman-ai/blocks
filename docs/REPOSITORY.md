@@ -23,7 +23,7 @@ caveman-blocks/
   internal/
     blockfile/               parse, write, validate, lint      (pure; golden tests)
     index/                   INDEX.md and managed-section rendering, freshness check (pure)
-    hook/                    decision engine                   (pure; golden decision tables)
+    hook/                    decision engine                   (pure; golden tables in internal/hook/testdata/)
       protocol/              generic JSON request/response, versioned (pure)
       dialect/<name>/        claude, cursor, copilot, gemini, generic: parse + render (pure; conformance fixtures)
       profiles.toml          per-harness data: dialect, events, config path, capabilities, transcripts
@@ -31,7 +31,7 @@ caveman-blocks/
     capture/                 script extraction, edit filter, normalization, shape, scrub, sightings store
       callnames.go           the fixed call-name table used by the shape fingerprint
     scan/                    transcript readers (one per harness, versioned), grouping, report
-    verify/                  run example at HEAD, check contract, write stamp
+    verify/                  run example from the working tree, check contract, write stamp
     registry/                embedded first-party blocks (go:embed), add, diff, update, lock file
     promote/                 brief rendering, candidate ranking, retire
     runner/                  caveman-blocks run: effects gate, path confinement, exec, cap, spill
@@ -40,6 +40,7 @@ caveman-blocks/
   blocks/                    first-party blocks, one file each, plus fixtures/<name>/; README.md is the registry table
   testdata/
     scrub/                   golden scrub cases
+    repo/                    a small fixture repository for end-to-end tests
     repo/                    a small fixture repository for end-to-end tests
     transcripts/<harness>/   scrubbed transcript samples for scan readers
     hook/                    golden decision tables: command in, decision out
@@ -70,8 +71,8 @@ caveman-blocks/
 | `hooks install\|uninstall\|status` | Per-machine hook entries for detected harnesses |
 | `add <name>` | Copy a first-party block into `.blocks/`, record in `blocks.lock`, `sync` |
 | `run <name> [--param v]` | Execute a block: effects gate from committed config, path confinement, cap, spill |
-| `lint [path]` | Format and rule checks; exits non-zero with coded findings |
-| `verify [name\|--changed\|--all] [--check]` | Run examples, write content-hash stamps, quarantine failures; `--check` writes nothing and fails |
+| `lint [path] [--first-party]` | Format and rule checks; exits non-zero with coded findings |
+| `verify [name\|--changed\|--all] [--check] [--policy-ref r]` | Run examples, write content-hash stamps, quarantine failures; `--check` writes nothing and fails; see CI.md |
 | `sync [--check]` | Regenerate `INDEX.md`, managed sections and exports; `--check` for CI |
 | `scan [--since 30d] [--harness x]` | Repeat table from local transcripts |
 | `promote [fp]` | List repeated shapes or print the promotion brief |

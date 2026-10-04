@@ -19,4 +19,4 @@ never a pass.
 
 - No model calls in the CLI. No network outside `internal/registry`. No telemetry.
 - Counted numbers are labelled measured. Never print a saving in dollars or percent.
-- Scoped conventional commits. PRs to `main`. `AGENTS.md` and `CLAUDE.md` byte-identical.
+- Scoped conventional commits. PRs to `main`. `AGENTS.md` is the only instruction file; no `CLAUDE.md`.
