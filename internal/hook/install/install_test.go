@@ -164,6 +164,52 @@ func TestInstallFollowsSymlinkAndQuotes(t *testing.T) {
 	}
 }
 
+// TestInstallFile covers the opencode-plugin format: a whole file, written once, removed only when ours.
+func TestInstallFile(t *testing.T) {
+	f, err := For("opencode-plugin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "plugins", "caveman-blocks.js")
+	if ok, _, err := f.Status(path); ok || err != nil {
+		t.Fatalf("status on a missing file: %v %v", ok, err)
+	}
+	c, err := f.Install(path, bin)
+	mustChange(t, true, c, err)
+	b, _ := os.ReadFile(path)
+	for _, want := range []string{"// /opt/cb/caveman-blocks hook --harness generic\n", `const INSTALLED = "/opt/cb/caveman-blocks";`, `"tool.execute.after"`} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("missing %q in:\n%s", want, b)
+		}
+	}
+	if strings.Contains(string(b), `const INSTALLED = "";`) {
+		t.Error("placeholder left in place")
+	}
+	c, err = f.Install(path, bin)
+	mustChange(t, false, c, err)
+	if ok, got, err := f.Status(path); !ok || got != bin || err != nil {
+		t.Fatalf("status: %v %q %v", ok, got, err)
+	}
+	c, err = f.Uninstall(path)
+	mustChange(t, true, c, err)
+	if _, err := os.Stat(path); err == nil {
+		t.Fatal("file not removed")
+	}
+	c, err = f.Uninstall(path)
+	mustChange(t, false, c, err)
+
+	theirs := []byte("export const Mine = async () => ({})\n")
+	os.WriteFile(path, theirs, 0o600)
+	if ok, _, _ := f.Status(path); ok {
+		t.Error("a user's plugin taken as ours")
+	}
+	c, err = f.Uninstall(path)
+	mustChange(t, false, c, err)
+	if b, _ := os.ReadFile(path); string(b) != string(theirs) {
+		t.Error("a user's plugin was touched")
+	}
+}
+
 // TestMarker pins which commands uninstall treats as ours: only what entries writes.
 func TestMarker(t *testing.T) {
 	ours := []string{

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "caveman-blocks",
+  "description": "Your agents write each script once, well, and reuse it as a verified block in .blocks/.",
+  "owner": { "name": "Julius Brussee", "url": "https://github.com/JuliusBrussee" },
+  "plugins": [
+    {
+      "name": "caveman-blocks",
+      "description": "One pre-run hook on Bash that names the block covering the script Claude is about to write. Never denies, never rewrites.",
+      "source": "./plugins/caveman-blocks",
+      "category": "productivity"
+    }
+  ]
+}

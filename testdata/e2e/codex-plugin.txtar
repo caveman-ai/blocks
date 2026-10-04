@@ -1,0 +1,33 @@
+# The Codex plugin shim forwards PreToolUse to the binary; without a binary it answers {} and exits 0.
+[!exec:python3] skip 'python3 is not on PATH'
+[!exec:sh] skip 'sh is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+env PLUGIN_ROOT=$WORK/plugin
+mkdir plugin/hooks
+cp $PLUGINSRC/hooks/pre-tool-use.sh plugin/hooks/pre-tool-use.sh
+
+# No binary anywhere the shim looks: empty answer, session untouched.
+stdin pre.json
+exec sh -c 'PATH=$WORK/nowhere /bin/sh plugin/hooks/pre-tool-use.sh'
+stdout '^\{\}$'
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+exec caveman-blocks add json-peek
+exec caveman-blocks hooks install --harness codex
+exists $WORK/home/.local/share/caveman-blocks/bin/caveman-blocks
+
+# The copy hooks install made is the one the shim runs, exactly as hooks.json invokes it, under
+# Codex's PLUGIN_ROOT and under Claude Code's CLAUDE_PLUGIN_ROOT.
+stdin ../pre.json
+exec sh -c 'sh "${PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh"'
+stdout '"additionalContext":"Blocks: json-peek covers this'
+env CLAUDE_PLUGIN_ROOT=$PLUGIN_ROOT
+env PLUGIN_ROOT=
+stdin ../pre.json
+exec sh -c 'sh "${PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh"'
+stdout '"additionalContext":"Blocks: json-peek covers this'
+
+-- pre.json --
+{"session_id":"e2e","hook_event_name":"PreToolUse","tool_use_id":"t1","tool_input":{"command":"python3 - <<'EOF'\nimport json\nd=json.load(open('x.json'))\nprint(d.keys())\nEOF"}}

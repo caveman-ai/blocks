@@ -29,6 +29,12 @@ func TestE2E(t *testing.T) {
 			} {
 				env.Setenv(k, v)
 			}
+			// PLUGINSRC is the Codex plugin in the repo, for codex-plugin.txtar.
+			src, err := filepath.Abs("../../plugins/caveman-blocks")
+			if err != nil {
+				return err
+			}
+			env.Setenv("PLUGINSRC", src)
 			return nil
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){

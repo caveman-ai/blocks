@@ -1,0 +1,15 @@
+{
+  "name": "caveman-blocks",
+  "displayName": "Caveman Blocks",
+  "version": "0.1.0",
+  "description": "Your agents write each script once, well, and reuse it. One PreToolUse hook on Bash points Claude at the block in .blocks/ that already covers the script it is about to write.",
+  "author": { "name": "Julius Brussee", "url": "https://github.com/JuliusBrussee" },
+  "homepage": "https://github.com/caveman-ai/blocks",
+  "repository": "https://github.com/caveman-ai/blocks",
+  "license": "Apache-2.0",
+  "keywords": ["productivity", "scripts", "reuse", "hooks", "agents-md"],
+  "documentationUrl": "https://github.com/caveman-ai/blocks/blob/main/README.md",
+  "supportUrl": "https://github.com/caveman-ai/blocks/issues",
+  "privacyPolicyUrl": "https://github.com/caveman-ai/blocks/blob/main/README.md#privacy",
+  "termsOfServiceUrl": "https://github.com/caveman-ai/blocks/blob/main/LICENSE"
+}

@@ -99,15 +99,40 @@ harness with a context field on its pre-run event needs only `pre_event`; one wi
 | Tier | Events | What works | Harnesses | Phase |
 |---|---|---|---|---|
 | A | `pre_event` only | everything, one event | Claude Code, Codex CLI | 1 |
-| B | `pre_event` and `post_event` | everything, two events | Cursor (1), Copilot CLI (2), Gemini CLI (2) | 1–2 |
-| C | none | rules, index, exports; no capture, no hints | Amp, OpenCode, Cline, anything that reads AGENTS.md | always |
+| B | `pre_event` and `post_event` | everything, two events | Cursor (1), OpenCode (1, plugin file), Copilot CLI (2), Gemini CLI (2) | 1–2 |
+| C | none | rules, index, exports; no capture, no hints | Amp, Cline, anything that reads AGENTS.md | always |
 
 Tier C is not a degraded mode to apologize for. It is the passive layer every harness gets, and it is
 what makes the repo useful to a teammate who has not installed anything.
 
+## The plugin directory
+
+Claude Code and Codex both load hooks from an installed plugin, and both read the same layout, so
+`plugins/caveman-blocks/` packages the `PreToolUse` entry once: `hooks/hooks.json`, a `skills/` entry,
+`.claude-plugin/plugin.json` for Claude Code, and `.codex-plugin/plugin.json` for Codex. There is
+deliberately no root `plugin.json`: Codex 0.160 loads no hooks from a plugin in the portable Agent
+Plugins format (`core-plugins/src/loader.rs`, the `AgentPlugin` branch), only from the legacy manifest. Two marketplace files at the repo root point at it, `.claude-plugin/marketplace.json`
+and `.agents/plugins/marketplace.json`, so `claude plugin marketplace add caveman-ai/blocks` and
+`codex plugin marketplace add caveman-ai/blocks` both find it. The plugin does not contain the binary:
+`hooks/pre-tool-use.sh` forwards stdin to the copy `hooks install` made, then to `caveman-blocks` on
+PATH, and answers `{}` when neither exists. Its command reads the plugin root from `PLUGIN_ROOT` or
+`CLAUDE_PLUGIN_ROOT`, whichever the harness exports. The hook speaks the `claude` dialect either way,
+and rule 2 dedupes the double call when a user has both the plugin and the user-level hook entry.
+`testdata/e2e/codex-plugin.txtar` runs the shim under both variables and without a binary.
+
+## The OpenCode plugin
+
+OpenCode has no hook file; it loads `.js` plugins from `~/.config/opencode/plugins/` and `.opencode/plugins/`.
+`plugins/caveman-blocks/opencode/caveman-blocks.js` is one: `tool.execute.before` on `bash` sends the
+generic request to `caveman-blocks hook --harness generic` and keeps the hint by call id, and
+`tool.execute.after` appends it to the tool output, since the before-hook has no context field. The
+`opencode-plugin` config format writes that file whole with the binary path baked in, its first line the
+marker command as a comment; `uninstall` removes the file only when that line is ours. The plugin fails
+open at every step. `testdata/e2e/opencode-plugin.txtar` drives it under bun against the real binary.
+
 ## Plugin shims for Tier C harnesses
 
-Amp, OpenCode and Cline expose plugin APIs rather than file hooks. Moving one to Tier A or B is a shim
+Amp and Cline expose plugin APIs rather than file hooks. Moving one to Tier A or B is a shim
 of about 20 lines in the harness's plugin language that forwards the call to `caveman-blocks hook
 --harness generic` and maps the response. Reference shims will live under `integrations/<harness>/` with their own
 conformance fixture. They are optional and separately versioned; the binary never depends on them.

@@ -1,0 +1,12 @@
+{
+  "name": "caveman-blocks",
+  "interface": { "displayName": "Caveman Blocks" },
+  "plugins": [
+    {
+      "name": "caveman-blocks",
+      "source": { "source": "local", "path": "./plugins/caveman-blocks" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -25,6 +25,9 @@ stdout '^claude-code: unchanged'
 exec caveman-blocks hooks install --harness codex
 stdout '^codex: installed in ~/.codex/hooks.json$'
 stdout 'open /hooks in Codex'
+exec caveman-blocks hooks install --harness opencode
+stdout '^opencode: installed in ~/.config/opencode/plugins/caveman-blocks.js$'
+stdout 'loads the plugin on its next start'
 ! exec caveman-blocks hooks install --harness nope
 stderr 'unknown --harness'
 

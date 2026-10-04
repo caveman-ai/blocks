@@ -1,0 +1,36 @@
+# The OpenCode plugin: hooks install writes it with the binary baked in; driven under bun, a bash call
+# that matches a block gets the hint appended to its output, and other calls are left alone.
+[!exec:python3] skip 'python3 is not on PATH'
+[!exec:bun] skip 'bun is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+exec caveman-blocks add json-peek
+exec caveman-blocks hooks install --harness opencode
+stdout '^opencode: installed in ~/.config/opencode/plugins/caveman-blocks.js$'
+exists $WORK/home/.config/opencode/plugins/caveman-blocks.js
+grep '^// .*/caveman-blocks hook --harness generic$' $WORK/home/.config/opencode/plugins/caveman-blocks.js
+
+exec bun ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js
+stdout '^matched: 1 rows\n\nBlocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>$'
+stdout '^plain: ok$'
+
+exec caveman-blocks hooks uninstall --harness opencode
+stdout '^opencode: removed from ~/.config/opencode/plugins/caveman-blocks.js$'
+! exists $WORK/home/.config/opencode/plugins/caveman-blocks.js
+
+-- drive.mjs --
+// Plays OpenCode: one plugin instance, a before and an after per call, cwd the repo.
+const mod = await import(process.argv[2]);
+const hooks = await mod.CavemanBlocks({ directory: process.cwd() });
+const run = async (callID, command, result) => {
+  const args = { command };
+  await hooks["tool.execute.before"]({ tool: "bash", sessionID: "e2e", callID }, { args });
+  const output = { title: "bash", output: result, metadata: {} };
+  await hooks["tool.execute.after"]({ tool: "bash", sessionID: "e2e", callID, args }, output);
+  return output.output;
+};
+console.log("matched: " + await run("c1", "python3 - <<'EOF'\nimport json\nd=json.load(open('x.json'))\nprint(d.keys())\nEOF", "1 rows"));
+console.log("plain: " + await run("c2", "ls", "ok"));

@@ -135,12 +135,13 @@ Adapters are dialect plus profile; see [INTEGRATION.md](INTEGRATION.md).
 
 | Harness | Pre-run event, matcher | Hint on pre-run | Post-run event (hint only) | User-level config | Phase | Notes |
 |---|---|---|---|---|---|---|
-| Claude Code | `PreToolUse`, `"matcher": "Bash"` | `hookSpecificOutput.additionalContext` | not needed | `~/.claude/settings.json` | 1 | Hooks wait for workspace trust in interactive sessions. Command at `tool_input.command`. |
-| Codex CLI | `PreToolUse`, matcher `Bash` | `additionalContext` (about 2,500 tokens cap) | not needed | `~/.codex/hooks.json` | 1 | Each new or changed hook is trusted once in `/hooks`; `install` prints that step. |
+| Claude Code | `PreToolUse`, `"matcher": "Bash"` | `hookSpecificOutput.additionalContext` | not needed | `~/.claude/settings.json`, or the plugin under `plugins/caveman-blocks/` | 1 | Hooks wait for workspace trust in interactive sessions. Command at `tool_input.command`. |
+| Codex CLI | `PreToolUse`, matcher `Bash` | `additionalContext` (about 2,500 tokens cap) | not needed | `~/.codex/hooks.json`, or the plugin under `plugins/caveman-blocks/` | 1 | Each new or changed hook is trusted once in `/hooks`; `install` prints that step. The plugin's `hooks/pre-tool-use.sh` runs the copy `hooks install` made, then `caveman-blocks` on PATH, and answers `{}` when neither exists. |
 | Cursor | `beforeShellExecution` | none | `afterShellExecution` → `additional_context` | `~/.cursor/hooks.json` | 1 | `preToolUse` is not reliable in the CLI. The pre-run response is `{}`, never `permission: allow`, so Cursor's own approval flow is untouched. Cursor also loads Claude Code hook files by default; rule 2 dedupes. |
 | Copilot CLI | `preToolUse`, tool `bash` | none | `postToolUse` → `additionalContext` | `~/.copilot/hooks/blocks.json` | 2 | Non-zero exit on pre denies. Always exit 0. `timeoutSec: 5`. |
 | Gemini CLI | `BeforeTool`, matcher `run_shell_command` | none | `AfterTool` → `additionalContext` | `~/.gemini/settings.json` | 2 | `timeout` in milliseconds: `5000`. |
-| Amp, OpenCode, Cline | plugin APIs | | | | later | Passive layer only; optional shims under `integrations/`. |
+| OpenCode | `tool.execute.before`, tool `bash` | none | `tool.execute.after` → appended to `output` | `~/.config/opencode/plugins/caveman-blocks.js` | 1 | A plugin file of ours, written whole with the binary path baked in; speaks the generic protocol. Removed only when its first line is our marker. |
+| Amp, Cline | plugin APIs | | | | later | Passive layer only; optional shims under `integrations/`. |
 
 `hooks install` never touches project-level hook files. `hooks status` shows which harnesses are
 installed and prints Codex's trust note (trust state itself is only visible inside Codex's `/hooks`). `hooks uninstall` removes exactly the entries it
@@ -166,6 +167,7 @@ Harnesses that read several of these files see one copy and one or two import li
 | Cursor | `AGENTS.md`, `.cursor/rules/*.mdc`; CLI also reads root `CLAUDE.md` |
 | Copilot CLI | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` |
 | Gemini CLI | `GEMINI.md`; `AGENTS.md` only if configured |
+| OpenCode | `AGENTS.md` |
 
 ## Transcripts for `scan`
 
