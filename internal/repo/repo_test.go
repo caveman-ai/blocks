@@ -218,10 +218,10 @@ func TestInstructionFiles(t *testing.T) {
 func TestIsCachePath(t *testing.T) {
 	for p, want := range map[string]bool{
 		"/Users/a/.npm/_npx/abc/node_modules/.bin/caveman-blocks": true,
-		"/home/a/.npm/caveman-blocks":                              true,
-		"/x/node_modules/caveman-blocks/bin":                       true,
-		"/usr/local/bin/caveman-blocks":                            false,
-		"/Users/a/.local/share/caveman-blocks/bin/caveman-blocks":  false,
+		"/home/a/.npm/caveman-blocks":                             true,
+		"/x/node_modules/caveman-blocks/bin":                      true,
+		"/usr/local/bin/caveman-blocks":                           false,
+		"/Users/a/.local/share/caveman-blocks/bin/caveman-blocks": false,
 	} {
 		if got := IsCachePath(p); got != want {
 			t.Errorf("IsCachePath(%s) = %v", p, got)
