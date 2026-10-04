@@ -145,5 +145,6 @@ func recordVerify(root string, o verify.Outcome) {
 		return
 	}
 	ok := o.Status == verify.Pass
-	stats.Append(dir, stats.Event{Session: os.Getenv("CAVEMAN_BLOCKS_SESSION"), Kind: stats.KindVerify, Block: o.Name, OK: &ok})
+	// verify events carry no session; "hint followed" comes from the hook's call events.
+	stats.Append(dir, stats.Event{Kind: stats.KindVerify, Block: o.Name, OK: &ok})
 }

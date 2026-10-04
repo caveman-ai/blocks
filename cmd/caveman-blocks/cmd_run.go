@@ -44,7 +44,8 @@ func runCmd() *cobra.Command {
 			}
 			ok := res.Exit == 0
 			exit := res.Exit
-			stats.Append(stateDir, stats.Event{Session: os.Getenv("CAVEMAN_BLOCKS_SESSION"), Kind: stats.KindRun, Block: l.b.Header.Name,
+			// run events carry no session; "hint followed" comes from the hook's call events.
+			stats.Append(stateDir, stats.Event{Kind: stats.KindRun, Block: l.b.Header.Name,
 				OK: &ok, BytesFull: res.BytesFull, BytesReturned: res.BytesReturned, Exit: &exit})
 			c.OutOrStdout().Write(res.Stdout)
 			if res.Exit != 0 {

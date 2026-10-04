@@ -39,6 +39,7 @@ type Event struct {
 	BytesFull     int       `json:"bytes_full,omitempty"`
 	BytesReturned int       `json:"bytes_returned,omitempty"`
 	Exit          *int      `json:"exit,omitempty"`
+	Lines         int       `json:"lines,omitempty"` // script events: body length
 }
 
 // Append writes e as one line to <stateDir>/stats.jsonl, created 0600, never through a symlink.
