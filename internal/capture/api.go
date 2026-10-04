@@ -6,8 +6,8 @@ import "time"
 
 // Script is an inline script extracted from a shell command.
 type Script struct {
-	Lang      string   // "py" in v0
-	Body      string   // the script text, unscrubbed
+	Lang      string // "py" in v0
+	Body      string // the script text, unscrubbed
 	Lines     int
 	Edit      bool     // reads a file, replaces, writes the same path
 	ScriptSHA string   // sha256 hex of the literal-stripped body
