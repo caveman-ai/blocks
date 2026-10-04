@@ -29,3 +29,6 @@ xdrlib xml xmlrpc zipapp zipfile zipimport zlib zoneinfo`) {
 	}
 	return set
 }()
+
+// IsStdlib reports whether name is a Python standard-library top-level module (3.10–3.13).
+func IsStdlib(name string) bool { return stdlib[name] }

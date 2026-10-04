@@ -76,7 +76,7 @@ cache/                  per-call decisions for dedupe and post-run replay
 ```
 
 The runner prunes `out/` entries older than 7 days and `cache/` entries older than 1 hour, at most once
-a day, on its own invocations. Sightings in `candidates/` older than 14 days are pruned, and a stored
+a day, on its own invocations. Sightings in `candidates/` older than 14 days are pruned by the same daily run, and a stored
 script is cut at 16 KiB.
 
 Files are opened with `O_APPEND|O_NOFOLLOW` and created `0600`. A cloned repository therefore cannot

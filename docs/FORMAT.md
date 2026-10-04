@@ -121,7 +121,8 @@ request review, and the fact that nothing in `.blocks/` runs unless an agent or 
 - Idempotent and non-interactive: no prompts, no reliance on being run once.
 - Composition: a block calls another block with `caveman-blocks run <name> ...` and parses the JSON.
   There is no shared library.
-- The runner invokes `python3 <file>` from the repo root; the file does not need an executable bit.
+- The runner invokes `python3 <file>` from the repo root with `PYTHONSAFEPATH=1` and `BLOCKS_OUT` set to the
+  state dir's `out/` folder, where a block writes any full log it keeps; the file does not need an executable bit.
 - The runner executes a block whether or not its stamp is current, because an agent iterates on a
   block before verifying it. When the stamp is missing, stale or quarantined, the answer gains
   `"_unverified": true`. `verify`'s own example runs emit no `run` events.
@@ -184,6 +185,7 @@ so in `import` mode it pays one file read per session.
 | F010 | `json.dumps` appears and no other `print` or `sys.stdout.write` targets stdout |
 | F011 | `returns.keys` non-empty |
 | F012 | `--first-party` only (used by this repo's CI): stdlib-only imports, one import per line |
+| F015 | Fixtures readable: regular files only, no symlinks, at most 64 KiB per block; an oversized block stays out of the index |
 | F013 | `name` is not a Python standard-library module name (`json`, `csv`, `glob`, `http`, `time`, …): the runner starts `python3 .blocks/<name>.py`, which puts `.blocks/` first on `sys.path`, so `.blocks/json.py` would break `import json` in every block |
 | W001 | Warning: current branch is the repository's default branch (see AGENT-PROMOTION) |
 | W002 | Warning: a `matches` pattern looks like shell, not Python (contains a backslash-escaped pipe, `grep `, `tail `, `curl ` or `until `); it is tested only against the Python body, so it never fires |

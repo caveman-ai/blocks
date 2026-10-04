@@ -151,8 +151,8 @@ func TestOversizedFixturesNotIndexed(t *testing.T) {
 	if len(errs) != 0 || len(all) != 1 || all[0].indexed {
 		t.Errorf("loadBlocks = %+v, %v", all, errs)
 	}
-	if fd := lintFile(filepath.Join(root, ".blocks", "json-peek.py"), blockfile.LintOptions{}); !slices.ContainsFunc(fd, func(f blockfile.Finding) bool { return f.Code == "F013" }) {
-		t.Errorf("lint findings %+v lack F013", fd)
+	if fd := lintFile(filepath.Join(root, ".blocks", "json-peek.py"), blockfile.LintOptions{}); !slices.ContainsFunc(fd, func(f blockfile.Finding) bool { return f.Code == "F015" }) {
+		t.Errorf("lint findings %+v lack F015", fd)
 	}
 }
 

@@ -102,7 +102,7 @@ func lintFile(path string, opts blockfile.LintOptions) []blockfile.Finding {
 	// Fixtures sit beside the block: .blocks/fixtures/<name> or, first-party, blocks/fixtures/<name>.
 	if registry.ValidName(b.Header.Name) {
 		if _, err := repo.ReadFixtureDir(filepath.Join(filepath.Dir(path), "fixtures", b.Header.Name)); err != nil {
-			findings = append(findings, blockfile.Finding{Code: "F013", Message: "fixtures: " + err.Error()})
+			findings = append(findings, blockfile.Finding{Code: "F015", Message: "fixtures: " + err.Error()})
 		}
 	}
 	return findings

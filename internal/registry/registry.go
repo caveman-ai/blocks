@@ -45,7 +45,9 @@ type AddResult struct {
 var validName = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // ValidName reports whether name is a legal block name (docs/FORMAT.md, `name`).
-func ValidName(name string) bool { return len(name) <= 64 && validName.MatchString(name) }
+func ValidName(name string) bool {
+	return len(name) <= 64 && validName.MatchString(name) && !blockfile.IsStdlib(name)
+}
 
 // List returns the embedded block names, sorted.
 func (r Registry) List() ([]string, error) {
