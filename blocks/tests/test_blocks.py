@@ -29,10 +29,35 @@ def header(name):
     return tomllib.loads(content)
 
 
+# One script body a block's `matches` should hint on, and one it should not, per block.
+MATCH_SAMPLES = {
+    "first-error": (
+        'for line in open("build.log"):\n    if re.search(r"error|FAIL", line):\n        print(line)\n',
+        'm = re.search(r"\\d+", text)\n',
+    ),
+    "grep-defs": ('defs = re.findall(r"^\\s*def (\\w+)", src, re.M)\n', 'nums = re.findall(r"\\d+", src)\n'),
+    "http-json": ("import urllib.request\nbody = urllib.request.urlopen(url).read()\n", "import urllib.parse\nq = urllib.parse.quote(x)\n"),
+    "json-peek": ('data = json.load(open("x.json"))\nprint(list(data))\n', "data = json.loads(payload)\nprint(json.dumps(data))\n"),
+    "jsonl-stats": ("from collections import Counter\nc = Counter(r['model'] for r in rows)\n", "print(len(rows))\n"),
+    "replace-in-file": ('s = open(p).read()\ns = s.replace("a", "b")\nopen(p, "w").write(s)\n', "s = open(p).read()\nprint(len(s))\n"),
+    "test-summary": ('subprocess.run(["pytest", "-q"], capture_output=True)\n', 'subprocess.run(["ls", "-la"])\n'),
+    "wait-for": (
+        "while True:\n    if os.path.exists(p):\n        break\n    time.sleep(1)\n",
+        'import time\ntime.sleep(5)\nprint("done")\n',
+    ),
+}
+
+
+def hints(name, body):
+    """Whether any of the block's `matches` patterns hits body, as hook rule 6 tests it."""
+    return any(re.search(pattern, body) for pattern in header(name)["matches"])
+
+
 def run(name, args, out_dir):
     env = dict(os.environ, BLOCKS_OUT=out_dir)
     return subprocess.run(
-        [sys.executable, os.path.join(HERE, f"{name}.py"), *args], capture_output=True, text=True, env=env, timeout=60, check=False
+        [sys.executable, os.path.join(HERE, f"{name}.py"), *args],
+        capture_output=True, text=True, env=env, timeout=60, check=False, cwd=os.path.dirname(HERE),  # runner cwd: repo root
     )
 
 
@@ -70,6 +95,32 @@ class Blocks(unittest.TestCase):
                 self.assertEqual(run(name, ["--help"], self.out).returncode, 0)
                 size = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(fixtures) for f in fs)
                 self.assertLessEqual(size, 64 * 1024)
+
+    def test_matches(self):
+        """matches hint on the shape the block replaces and not on a near miss. Go uses RE2: no lookarounds."""
+        self.assertEqual(sorted(MATCH_SAMPLES), BLOCKS)
+        for name in BLOCKS:
+            with self.subTest(block=name):
+                patterns = header(name)["matches"]
+                self.assertTrue(patterns)
+                for pattern in patterns:
+                    self.assertNotRegex(pattern, r"\(\?<?[=!]")
+                positive, negative = MATCH_SAMPLES[name]
+                self.assertTrue(hints(name, positive), positive)
+                self.assertFalse(hints(name, negative), negative)
+
+    def test_wait_for_matches_loops_only(self):
+        self.assertTrue(hints("wait-for", "for _ in range(10):\n    check()\n    time.sleep(0.5)\n"))
+        self.assertTrue(hints("wait-for", "while not ready(): time.sleep(1)\n"))
+        self.assertFalse(hints("wait-for", "for f in files:\n    print(f)\ntime.sleep(1)\n"))
+
+    def test_http_json_file_url_stays_in_repo(self):
+        outside = os.path.join(self.out, "x.json")
+        with open(outside, "w", encoding="utf-8") as fh:
+            fh.write("{}")
+        for url in (f"file://{outside}", "file:///etc/hosts", f"file://{FIXTURES}/../../../etc/hosts"):
+            with self.subTest(url=url):
+                self.assertEqual(self.answer("http-json", ["--url", url], code=1), {"error": "file URL must resolve inside the repo root"})
 
     def test_json_peek_jsonl(self):
         answer = self.answer("json-peek", ["--path", os.path.join(FIXTURES, "json-peek", "events.jsonl")])

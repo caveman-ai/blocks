@@ -4,7 +4,7 @@
 # summary = "Fetch a JSON URL; return status, top-level keys, selected values, size and the saved body path."
 # effects = "network"
 # example = ["--url", "file://$FIXTURES/sample.json", "--keys", "name,owner.login,count"]
-# matches = ['urllib\.request', 'requests\.(get|post)', 'curl .*\| *python']
+# matches = ['urllib\.request', 'requests\.(get|post)']
 #
 # [returns]
 # keys = ["status", "keys", "selected", "size", "full", "truncated"]
@@ -54,8 +54,13 @@ def cut(value):
 
 
 def fetch(url, timeout, method):
-    if urllib.parse.urlparse(url).scheme not in ("http", "https", "file"):
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https", "file"):
         raise ValueError("url must be http, https or file")
+    if parsed.scheme == "file":  # the runner starts blocks from the repo root
+        root = os.path.realpath(os.getcwd())
+        if os.path.commonpath([root, os.path.realpath(urllib.request.url2pathname(parsed.path))]) != root:
+            raise ValueError("file URL must resolve inside the repo root")
     request = urllib.request.Request(url, method=method)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:

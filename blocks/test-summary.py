@@ -4,7 +4,7 @@
 # summary = "Run a test command; return pass/fail counts, the first failure and its trace head, log path."
 # effects = "exec"
 # example = ["--cmd", "python3 $FIXTURES/fake_tests.py"]
-# matches = ['(pytest|go test|vitest|cargo test).*\|\s*(tail|grep|head)', 'subprocess\.run\(.*test']
+# matches = ['subprocess\.run\(.*test']
 #
 # [returns]
 # keys = ["passed", "failed", "skipped", "first_failure", "exit", "log", "duration_s"]

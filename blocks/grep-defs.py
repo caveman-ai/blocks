@@ -4,7 +4,7 @@
 # summary = "Function, class, type and constant definitions in a file or directory, with line numbers."
 # effects = "read"
 # example = ["--path", "$FIXTURES"]
-# matches = ['^\s*(def|class|func|type) .*re\.findall', 'grep -n .*\^(func|def|type|class)']
+# matches = ['re\.(compile|findall|finditer|search|match)\(.*\b(def|class|func|type)\b']
 #
 # [returns]
 # keys = ["defs", "total", "truncated"]

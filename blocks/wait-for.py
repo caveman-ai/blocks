@@ -4,7 +4,7 @@
 # summary = "Wait until a file exists, optionally containing a regex; return whether it happened and when."
 # effects = "read"
 # example = ["--path", "$FIXTURES/server.log", "--pattern", "listening on", "--timeout", "5"]
-# matches = ['time\.sleep\(', 'until .*sleep']
+# matches = ['\b(while|for)\b[^\n]*:([^\n]*\n[ \t]+)*?[^\n]*time\.sleep\(']
 #
 # [returns]
 # keys = ["met", "elapsed_s", "last_line", "timed_out"]

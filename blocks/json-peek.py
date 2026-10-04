@@ -4,7 +4,7 @@
 # summary = "Shape of a JSON or JSONL file: keys, row count, one sample. Never the data."
 # effects = "read"
 # example = ["--path", "$FIXTURES/sample.json", "--depth", "2"]
-# matches = ['json\.loads?\(', 'JSON\.parse\(']
+# matches = ['json\.load\(open', 'json\.loads?\(.*\.read\(\)', 'json\.load\(sys\.stdin']
 #
 # [returns]
 # keys = ["kind", "keys", "rows", "sample", "truncated"]

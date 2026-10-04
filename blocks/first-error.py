@@ -4,7 +4,7 @@
 # summary = "First error line in a log file: its line number, the match and the lines around it."
 # effects = "read"
 # example = ["--path", "$FIXTURES/build.log", "--context", "3"]
-# matches = ['(error|Error|FAIL|Traceback).*re\.(search|findall)', 'tail -n? ?\d+ .*\.log']
+# matches = ['(error|Error|FAIL|Traceback).*re\.(search|findall)', 're\.(search|findall)\(.*(error|Error|ERROR|FAIL|Traceback)']
 #
 # [returns]
 # keys = ["line", "match", "context", "total_matches", "truncated"]
