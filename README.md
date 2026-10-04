@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://github.com/caveman-ai/blocks"><img src="docs/assets/banner.png" alt="Caveman / Blocks. The word BLOCKS in solid pixel letters with a double-line shadow, the Caveman rock as the O. Why many script when few do trick. Say this to shell: npx caveman-blocks scan. Works with Claude Code, Codex, Cursor and any AGENTS.md agent. The cave wall, 11,475 scripts in 7 days on one machine, as tally marks: peek at a JSON file 373 times, parse JSON from a pipe 225 times, count bad rows in a JSON file 144 times, each covered by json-peek; replace text in a file 47 times, covered by replace-in-file" width="880"></a>
+<a href="https://github.com/caveman-ai/blocks"><img src="docs/assets/banner.png" alt="Caveman / Blocks. The word BLOCKS in solid pixel letters with a double-line shadow, the Caveman rock as the O. Why many script when few do trick. Agent write same script every session, throw it away, write it again. Blocks carve it once, keep it in your repo and check it every PR. Say this to shell: npx caveman-blocks scan. Works with Claude Code, Codex, Cursor and any AGENTS.md agent" width="880"></a>
 
 # why many script when few do trick
 
