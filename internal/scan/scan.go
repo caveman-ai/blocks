@@ -25,8 +25,8 @@ type Group struct {
 	FP        string
 	Count     int
 	Sessions  int
-	Lines     int // median script length
-	Example   string
+	Lines     int    // median script length
+	Example   string // latest script of the shape, scrubbed
 	Last      time.Time
 	CoveredBy []string // block names whose matches hit Example, sorted
 }
@@ -42,9 +42,6 @@ type Report struct {
 	Skipped   map[string]int // unparsable lines and unreadable files, per harness
 	Harnesses []string       // reader names, in the order given
 }
-
-// blockCall mirrors hook rule 3 without the capture package: block calls are not scripts.
-var blockCall = regexp.MustCompile(`^\s*(caveman-blocks\s+run\s|python3?\s+\.blocks/)`)
 
 type acc struct {
 	g        Group
@@ -88,7 +85,7 @@ func Scan(readers []Reader, since time.Duration, extract func(string) (capture.S
 						continue
 					}
 					rep.Commands++
-					if blockCall.MatchString(c.Command) {
+					if _, ok := capture.IsBlockCall(c.Command); ok { // hook rule 3: not a script
 						continue
 					}
 					s, ok := extract(c.Command)
@@ -132,6 +129,7 @@ func Scan(readers []Reader, since time.Duration, extract func(string) (capture.S
 				}
 			}
 		}
+		a.g.Example = capture.Scrub(a.g.Example) // matched raw, like the hook; shown scrubbed
 		sort.Strings(a.g.CoveredBy)
 		rep.Groups = append(rep.Groups, a.g)
 	}

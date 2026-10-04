@@ -199,3 +199,33 @@ func TestFormatTopN(t *testing.T) {
 		t.Fatalf("empty:\n%s", out)
 	}
 }
+
+// oneFile is a Reader over one fixed transcript path that returns cmds.
+type oneFile struct {
+	path string
+	cmds []Cmd
+}
+
+func (oneFile) Name() string                      { return "fake" }
+func (r oneFile) Default() []string               { return []string{r.path} }
+func (r oneFile) Commands(string) (Result, error) { return Result{Cmds: r.cmds}, nil }
+
+func TestScanScrubsExample(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "t.jsonl")
+	os.WriteFile(p, nil, 0o644)
+	secret := "sk-live-0123456789abcdefghijklmnopqrstuv"
+	r := oneFile{p, []Cmd{
+		{Session: "s", Command: "python3 - <<'PY'\nimport json\nkey = \"" + secret + "\"\njson.load(open('a'))\nPY"},
+		{Session: "s", Command: "caveman-blocks run json-peek --path a.json"},
+	}}
+	rep, err := Scan([]Reader{r}, 0, extractStub, blocks())
+	if err != nil || len(rep.Groups) != 1 {
+		t.Fatalf("rep = %+v, %v", rep, err)
+	}
+	if out := Format(rep); strings.Contains(out, secret) || strings.Contains(rep.Groups[0].Example, secret) {
+		t.Errorf("secret in scan output:\n%s", out)
+	}
+	if rep.Scripts != 1 || !reflect.DeepEqual(rep.Groups[0].CoveredBy, []string{"json-peek"}) {
+		t.Errorf("rep = %+v", rep)
+	}
+}
