@@ -8,7 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/blockfile"
 )
 
 const stamped = `#!/usr/bin/env python3

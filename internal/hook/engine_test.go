@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
+	"github.com/caveman-ai/blocks/internal/capture"
 )
 
 // goldenCase is one row of testdata/decisions/*.json.

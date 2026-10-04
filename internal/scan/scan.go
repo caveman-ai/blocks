@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
+	"github.com/caveman-ai/blocks/internal/capture"
 )
 
 // MatchInfo is a block's name and compiled `matches` patterns.

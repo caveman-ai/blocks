@@ -4,7 +4,7 @@ package generic
 import (
 	"encoding/json"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook/protocol"
+	"github.com/caveman-ai/blocks/internal/hook/protocol"
 )
 
 // Parse decodes a generic protocol request.

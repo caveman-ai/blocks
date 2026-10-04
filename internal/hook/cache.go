@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
+	"github.com/caveman-ai/blocks/internal/capture"
 )
 
 // cacheTTL is how long cache entries live; older ones are ignored. The runner prunes them daily.

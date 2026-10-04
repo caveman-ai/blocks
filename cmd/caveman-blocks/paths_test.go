@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuliusBrussee/caveman-blocks/blocks"
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/export"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/blocks"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/export"
+	"github.com/caveman-ai/blocks/internal/repo"
 )
 
 // symlinkRepo makes <tmp>/repo/.blocks and <tmp>/outside/file ("keep") and returns both paths.

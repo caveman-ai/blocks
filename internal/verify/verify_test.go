@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/runner"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/runner"
 )
 
 // Stubs for the blockfile functions: the hash is fixed and the stamp is a trailing comment line.

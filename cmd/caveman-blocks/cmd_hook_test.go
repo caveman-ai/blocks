@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/repo"
 )
 
 // TestHookWatchdog runs the hook in a child process whose stdin never closes: the watchdog must answer

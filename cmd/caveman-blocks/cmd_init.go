@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/repo"
 	"github.com/spf13/cobra"
 )
 

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook/protocol"
+	"github.com/caveman-ai/blocks/internal/hook/protocol"
 )
 
 type input struct {

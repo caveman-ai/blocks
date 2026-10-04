@@ -21,8 +21,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/repo"
 )
 
 const (

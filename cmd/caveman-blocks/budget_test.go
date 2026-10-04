@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/blocks"
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/blocks"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/repo"
 )
 
 // TestHookBudget enforces the hook latency budget of docs/ARCHITECTURE.md: median wall time of a

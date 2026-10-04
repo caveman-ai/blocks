@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/blockfile"
 )
 
 // fakeBlock writes body to <root>/.blocks/<name>.py and returns a hand-built Block for it.

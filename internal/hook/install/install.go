@@ -15,7 +15,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook"
+	"github.com/caveman-ai/blocks/internal/hook"
 )
 
 // marker matches exactly the command entries writes, `<bin> hook --harness <d>[ --phase pre|post]`,

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
+	"github.com/caveman-ai/blocks/internal/capture"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")

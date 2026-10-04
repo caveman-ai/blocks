@@ -1,4 +1,4 @@
-module github.com/JuliusBrussee/caveman-blocks
+module github.com/caveman-ai/blocks
 
 go 1.26
 

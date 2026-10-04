@@ -10,12 +10,12 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
-	"github.com/JuliusBrussee/caveman-blocks/internal/promote"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
-	"github.com/JuliusBrussee/caveman-blocks/internal/scan"
-	"github.com/JuliusBrussee/caveman-blocks/internal/stats"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/capture"
+	"github.com/caveman-ai/blocks/internal/promote"
+	"github.com/caveman-ai/blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/scan"
+	"github.com/caveman-ai/blocks/internal/stats"
 	"github.com/spf13/cobra"
 )
 

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
-	"github.com/JuliusBrussee/caveman-blocks/internal/runner"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/runner"
 )
 
 // Timeout bounds one example run.

@@ -14,18 +14,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
-	"github.com/JuliusBrussee/caveman-blocks/internal/index"
-	"github.com/JuliusBrussee/caveman-blocks/internal/registry"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/capture"
+	"github.com/caveman-ai/blocks/internal/index"
+	"github.com/caveman-ai/blocks/internal/registry"
+	"github.com/caveman-ai/blocks/internal/repo"
 )
 
 // Rules is the eight-rule authoring pack, byte-identical to docs/FORMAT.md "The eight rules".
 const Rules = index.Rules
 
 // FormatURL points the agent at the block format.
-const FormatURL = "https://github.com/JuliusBrussee/caveman-blocks/blob/main/docs/FORMAT.md"
+const FormatURL = "https://github.com/caveman-ai/blocks/blob/main/docs/FORMAT.md"
 
 // Steps is the verbatim step block from docs/AGENT-PROMOTION.md.
 const Steps = `caveman-blocks lint .blocks/<name>.py

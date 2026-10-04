@@ -29,7 +29,7 @@ Name: count-json (two or three kebab words, verb-noun or noun-noun; rename if a 
 # source = "candidate:a1b2c3d4e5f6"
 # sessions = 3
 
-3. Rules (format: https://github.com/JuliusBrussee/caveman-blocks/blob/main/docs/FORMAT.md)
+3. Rules (format: https://github.com/caveman-ai/blocks/blob/main/docs/FORMAT.md)
 
 BLOCKS. Scripts in this repo are reusable blocks in .blocks/. Rules:
 1. Check the block index below first. If a block fits, run it. If one almost fits, add a param to it.

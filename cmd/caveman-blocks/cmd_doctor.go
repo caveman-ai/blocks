@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
-	"github.com/JuliusBrussee/caveman-blocks/internal/runner"
+	"github.com/caveman-ai/blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/runner"
 	"github.com/spf13/cobra"
 )
 

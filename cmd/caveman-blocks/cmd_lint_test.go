@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/verify"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/verify"
 )
 
 // TestLintSymlinkedFixtures: a symlinked .blocks/fixtures is F015 in lint, as it fails verify and sync.

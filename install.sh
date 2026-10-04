@@ -2,7 +2,7 @@
 # Install caveman-blocks from GitHub releases. Verifies the checksum before installing.
 # Usage: curl -fsSL https://caveman.so/blocks/install.sh | sh        (optional: VERSION=v0.1.0 BIN_DIR=~/.local/bin)
 set -eu
-REPO="JuliusBrussee/caveman-blocks"
+REPO="caveman-ai/blocks"
 BIN_DIR=${BIN_DIR:-"$HOME/.local/bin"}
 os=$(uname -s | tr '[:upper:]' '[:lower:]'); arch=$(uname -m)
 case $arch in x86_64|amd64) arch=amd64;; arm64|aarch64) arch=arm64;; *) echo "unsupported arch $arch" >&2; exit 1;; esac

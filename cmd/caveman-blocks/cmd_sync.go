@@ -11,10 +11,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/export"
-	"github.com/JuliusBrussee/caveman-blocks/internal/index"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/export"
+	"github.com/caveman-ai/blocks/internal/index"
+	"github.com/caveman-ai/blocks/internal/repo"
 	"github.com/spf13/cobra"
 )
 

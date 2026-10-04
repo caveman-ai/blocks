@@ -13,8 +13,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/repo"
 	"github.com/pelletier/go-toml/v2"
 )
 

@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/JuliusBrussee/caveman-blocks/blocks"
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/blocks"
+	"github.com/caveman-ai/blocks/internal/blockfile"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")

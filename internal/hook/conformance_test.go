@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook/dialect/claude"
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook/dialect/cursor"
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook/dialect/generic"
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook/protocol"
+	"github.com/caveman-ai/blocks/internal/hook/dialect/claude"
+	"github.com/caveman-ai/blocks/internal/hook/dialect/cursor"
+	"github.com/caveman-ai/blocks/internal/hook/dialect/generic"
+	"github.com/caveman-ai/blocks/internal/hook/protocol"
 )
 
 const fixtureHint = "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>"

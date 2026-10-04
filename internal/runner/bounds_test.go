@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/blockfile"
 )
 
 func TestPython310(t *testing.T) {

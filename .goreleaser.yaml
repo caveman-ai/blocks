@@ -25,10 +25,10 @@ changelog:
 homebrew_casks:
   - name: caveman-blocks
     repository:
-      owner: JuliusBrussee
+      owner: caveman-ai
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: https://github.com/JuliusBrussee/caveman-blocks
+    homepage: https://github.com/caveman-ai/blocks
     description: Your agents write each script once, well, and reuse it.
     license: Apache-2.0
     skip_upload: auto   # prereleases do not reach the tap

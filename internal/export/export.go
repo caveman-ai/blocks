@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/blockfile"
 )
 
 // Marker is the line that identifies a generated SKILL.md, so sync removes only files it wrote.

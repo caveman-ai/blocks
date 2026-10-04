@@ -4,9 +4,9 @@ import (
 	"errors"
 	"os"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
-	"github.com/JuliusBrussee/caveman-blocks/internal/runner"
-	"github.com/JuliusBrussee/caveman-blocks/internal/stats"
+	"github.com/caveman-ai/blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/runner"
+	"github.com/caveman-ai/blocks/internal/stats"
 	"github.com/spf13/cobra"
 )
 

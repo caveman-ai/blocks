@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
-	"github.com/JuliusBrussee/caveman-blocks/internal/registry"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
-	"github.com/JuliusBrussee/caveman-blocks/internal/stats"
-	"github.com/JuliusBrussee/caveman-blocks/internal/verify"
+	"github.com/caveman-ai/blocks/internal/blockfile"
+	"github.com/caveman-ai/blocks/internal/registry"
+	"github.com/caveman-ai/blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/stats"
+	"github.com/caveman-ai/blocks/internal/verify"
 	"github.com/spf13/cobra"
 )
 

@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook"
-	"github.com/JuliusBrussee/caveman-blocks/internal/hook/install"
-	"github.com/JuliusBrussee/caveman-blocks/internal/repo"
+	"github.com/caveman-ai/blocks/internal/hook"
+	"github.com/caveman-ai/blocks/internal/hook/install"
+	"github.com/caveman-ai/blocks/internal/repo"
 	"github.com/spf13/cobra"
 )
 
