@@ -1,0 +1,17 @@
+[
+  {
+    "name": "hint = false: a match gives no hint, no event, and still skips capture",
+    "cfg": {"repo_root": "/repo", "hint_disabled": true, "blocks": [{"name": "json-peek", "effects": "read", "installed": true, "matches": ["json"], "hint": "caveman-blocks run json-peek --path <path>"}]},
+    "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s1"},
+    "stub": {"extract": {"body": "import json\n", "lines": 12, "fp": "aaaaaaaaaaaa"}, "shapes": [{"fp": "bbbbbbbbbbbb", "sessions": 2}]},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "hint = false keeps capture and its stats",
+    "cfg": {"repo_root": "/repo", "hint_disabled": true},
+    "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s1"},
+    "stub": {"extract": {"body": "import json\n", "lines": 12, "fp": "aaaaaaaaaaaa", "script_sha": "sha1"}, "dump": "json", "shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 2}]},
+    "expect": {"hint": "", "events": [{"kind": "script", "fp": "aaaaaaaaaaaa", "lines": 12}],
+               "sighting": {"fp": "aaaaaaaaaaaa", "script_sha": "sha1", "lines": 12, "script": "import json\n", "command_head": "python3 - <<'EOF' ...", "literals": []}}
+  }
+]

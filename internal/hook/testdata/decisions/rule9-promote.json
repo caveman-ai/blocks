@@ -1,0 +1,55 @@
+[
+  {
+    "name": "a shape from two sessions emits the promote hint alone",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "ls", "cwd": "/repo", "session": "s1"},
+    "stub": {"shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 2}]},
+    "expect": {"hint": "Run caveman-blocks promote when the task is done.", "events": [{"kind": "promote-hint"}]}
+  },
+  {
+    "name": "the promote hint is appended to a match hint",
+    "cfg": {"repo_root": "/repo", "blocks": [{"name": "loc", "effects": "read", "installed": true, "matches": ["os\\.walk"], "hint": "caveman-blocks run loc"}]},
+    "input": {"command": "python3 -c ...", "cwd": "/repo", "session": "s1"},
+    "stub": {"extract": {"body": "import os; os.walk('.')", "lines": 1}, "shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 3}]},
+    "expect": {"hint": "Blocks: loc covers this. Next time: caveman-blocks run loc Run caveman-blocks promote when the task is done.",
+               "events": [{"kind": "hint", "block": "loc"}, {"kind": "promote-hint"}]}
+  },
+  {
+    "name": "five single-session shapes are enough",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "ls", "cwd": "/repo", "session": "s1"},
+    "stub": {"shapes": [{"fp": "a1", "sessions": 1}, {"fp": "a2", "sessions": 1}, {"fp": "a3", "sessions": 1}, {"fp": "a4", "sessions": 1}, {"fp": "a5", "sessions": 1}]},
+    "expect": {"hint": "Run caveman-blocks promote when the task is done.", "events": [{"kind": "promote-hint"}]}
+  },
+  {
+    "name": "four single-session shapes are not",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "ls", "cwd": "/repo", "session": "s1"},
+    "stub": {"shapes": [{"fp": "a1", "sessions": 1}, {"fp": "a2", "sessions": 1}, {"fp": "a3", "sessions": 1}, {"fp": "a4", "sessions": 1}]},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "shapes a block's provenance names do not count",
+    "cfg": {"repo_root": "/repo", "covered_fps": ["aaaaaaaaaaaa", "a5"]},
+    "input": {"command": "ls", "cwd": "/repo", "session": "s1"},
+    "stub": {"shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 4}, {"fp": "a1", "sessions": 1}, {"fp": "a2", "sessions": 1}, {"fp": "a3", "sessions": 1}, {"fp": "a4", "sessions": 1}, {"fp": "a5", "sessions": 1}]},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "the promote hint is given once per session",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "ls", "cwd": "/repo", "session": "s1"},
+    "stub": {"shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 2}]},
+    "cache": {"promote_hinted": true},
+    "expect": {"hint": "", "events": null}
+  },
+  {
+    "name": "a capture and the promote hint in one call",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"command": "python3 - <<'EOF' ...", "cwd": "/repo", "session": "s2"},
+    "stub": {"extract": {"body": "import json\n", "lines": 10, "fp": "aaaaaaaaaaaa", "script_sha": "sha1"}, "shapes": [{"fp": "aaaaaaaaaaaa", "sessions": 2}]},
+    "expect": {"hint": "Run caveman-blocks promote when the task is done.",
+               "events": [{"kind": "script", "fp": "aaaaaaaaaaaa", "lines": 10}, {"kind": "promote-hint"}],
+               "sighting": {"fp": "aaaaaaaaaaaa", "script_sha": "sha1", "lines": 10, "script": "import json\n", "command_head": "python3 - <<'EOF' ...", "literals": []}}
+  }
+]
