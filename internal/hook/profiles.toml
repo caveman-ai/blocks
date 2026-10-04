@@ -34,6 +34,17 @@ post_event = { name = "afterShellExecution" }
 timeout = { value = 5, unit = "s" }
 trust_note = "Cursor also loads Claude Code hook files by default; the hook dedupes the double call."
 
+[opencode]
+phase = 1
+dialect = "generic"
+detect = ["~/.config/opencode"]
+config = "~/.config/opencode/plugins/caveman-blocks.js"
+config_format = "opencode-plugin"
+pre_event = { name = "tool.execute.before", matcher = "bash" }
+post_event = { name = "tool.execute.after", matcher = "bash" }
+timeout = { value = 5, unit = "s" }
+trust_note = "OpenCode loads the plugin on its next start; the hint arrives appended to the tool output."
+
 [copilot]
 phase = 2
 dialect = "copilot"

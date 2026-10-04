@@ -45,6 +45,8 @@ caveman-blocks/
   testdata/
     e2e/                     testscript scenarios run by make e2e (build tag e2e)
   npm/                       shim package and per-platform package templates
+  plugins/caveman-blocks/    Claude Code and Codex plugin (.claude-plugin and .codex-plugin manifests, hooks/hooks.json and shim, skill) and opencode/ plugin file;
+                             listed by .claude-plugin/marketplace.json and .agents/plugins/marketplace.json; plugins/embed.go embeds the OpenCode file
   docs/                      see README
   .github/workflows/         ci.yml, release.yml
   Makefile                   test, lint, e2e, bench-hook, build, blocks-test, blocks-lint, blocks-verify
@@ -67,7 +69,7 @@ caveman-blocks/
 | Command | Purpose |
 |---|---|
 | `init` | Create `.blocks/` and `config.toml` in the current directory; run `sync` |
-| `hooks install\|uninstall\|status [--harness x]` | Per-machine hook entries for detected harnesses (`claude-code`, `codex`, `cursor`), or the named ones |
+| `hooks install\|uninstall\|status [--harness x]` | Per-machine hook entries for detected harnesses (`claude-code`, `codex`, `cursor`, `opencode`), or the named ones |
 | `add <name> [--force]` | Copy a first-party block into `.blocks/`, record in `blocks.lock`, `verify`, `sync` |
 | `run <name> [--param v]` | Execute a block: effects gate from committed config, path confinement, cap, spill |
 | `lint [path] [--first-party]` | Format and rule checks; exits non-zero with coded findings |

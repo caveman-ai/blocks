@@ -1,0 +1,18 @@
+{
+  "description": "Caveman Blocks: one hint line when a shell script matches an indexed block. Never denies, never rewrites.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh\"",
+            "timeout": 5,
+            "statusMessage": "Checking .blocks/"
+          }
+        ]
+      }
+    ]
+  }
+}

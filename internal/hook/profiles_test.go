@@ -25,10 +25,10 @@ func TestProfiles(t *testing.T) {
 			}
 		}
 	}
-	if got := strings.Join(names, ","); got != "claude-code,codex,cursor,copilot,gemini" {
+	if got := strings.Join(names, ","); got != "claude-code,codex,cursor,opencode,copilot,gemini" {
 		t.Fatalf("profiles %s", got)
 	}
-	if ps[4].Timeout.Unit != "ms" || ps[4].Timeout.Value != 5000 {
-		t.Errorf("gemini timeout %+v, want 5000 ms", ps[4].Timeout)
+	if ps[5].Timeout.Unit != "ms" || ps[5].Timeout.Value != 5000 {
+		t.Errorf("gemini timeout %+v, want 5000 ms", ps[5].Timeout)
 	}
 }

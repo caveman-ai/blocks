@@ -20,7 +20,7 @@ func hooksCmd() *cobra.Command {
 		Short: "Install, remove or show the per-machine hook for each detected harness.",
 		Args:  args(cobra.NoArgs),
 	}
-	c.PersistentFlags().StringSliceVar(&names, "harness", nil, "claude-code, codex or cursor; repeatable (default: every detected one)")
+	c.PersistentFlags().StringSliceVar(&names, "harness", nil, "claude-code, codex, cursor or opencode; repeatable (default: every detected one)")
 
 	c.AddCommand(&cobra.Command{
 		Use:   "install [--harness x]...",
@@ -33,7 +33,7 @@ func hooksCmd() *cobra.Command {
 			}
 			out := c.OutOrStdout()
 			if len(profiles) == 0 {
-				fmt.Fprintln(out, "No harness detected (~/.claude, ~/.codex, ~/.cursor). Name one with --harness.")
+				fmt.Fprintln(out, "No harness detected (~/.claude, ~/.codex, ~/.cursor, ~/.config/opencode). Name one with --harness.")
 				return nil
 			}
 			exe, err := executable()
@@ -93,7 +93,7 @@ func hooksCmd() *cobra.Command {
 				return err
 			}
 			if len(profiles) == 0 {
-				fmt.Fprintln(c.OutOrStdout(), "No harness detected (~/.claude, ~/.codex, ~/.cursor).")
+				fmt.Fprintln(c.OutOrStdout(), "No harness detected (~/.claude, ~/.codex, ~/.cursor, ~/.config/opencode).")
 			}
 			for _, p := range profiles {
 				hookStatus(c.OutOrStdout(), p)

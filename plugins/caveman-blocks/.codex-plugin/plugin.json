@@ -1,0 +1,25 @@
+{
+  "name": "caveman-blocks",
+  "version": "0.1.0",
+  "description": "Your agents write each script once, well, and reuse it. A pre-run hook that points Codex at the block in .blocks/ that already covers the script it is about to write.",
+  "author": { "name": "Julius Brussee", "url": "https://github.com/JuliusBrussee" },
+  "homepage": "https://github.com/caveman-ai/blocks",
+  "repository": "https://github.com/caveman-ai/blocks",
+  "license": "Apache-2.0",
+  "keywords": ["productivity", "scripts", "reuse", "hooks", "agents-md"],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Caveman Blocks",
+    "shortDescription": "Write each script once. Reuse it as a verified block.",
+    "longDescription": "One PreToolUse hook on the shell tool. When Codex is about to run a script that an indexed block in your repo's .blocks/ already covers, it gets one line naming the block and the call. It never denies or rewrites a command and never leaves your repo. Needs the caveman-blocks binary on this machine.",
+    "developerName": "Julius Brussee",
+    "category": "Productivity",
+    "capabilities": ["Read"],
+    "websiteURL": "https://github.com/caveman-ai/blocks",
+    "privacyPolicyURL": "https://github.com/caveman-ai/blocks/blob/main/README.md#privacy",
+    "termsOfServiceURL": "https://github.com/caveman-ai/blocks/blob/main/LICENSE",
+    "defaultPrompt": ["Check .blocks/INDEX.md before writing a script"],
+    "brandColor": "#F0A63C"
+  }
+}
