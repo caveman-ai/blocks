@@ -4,7 +4,7 @@
 # summary = "Function, class, type and constant definitions in a file or directory, with line numbers."
 # effects = "read"
 # example = ["--path", "$FIXTURES"]
-# matches = ['^\s*(def|class|func|type) .*re\.findall', 'grep -n .*\^(func|def|type|class)']
+# matches = ['re\.(compile|findall|finditer|search|match)\(.*\b(def|class|func|type)\b']
 #
 # [returns]
 # keys = ["defs", "total", "truncated"]
@@ -19,7 +19,7 @@
 # source = "registry:grep-defs@0.1.0"
 #
 # [stamp]
-# verified = "b636d7eecae2"
+# verified = "9cf71b324094"
 # ///
 """List definitions in Python, Go and TypeScript/JavaScript sources with their line numbers."""
 import argparse
