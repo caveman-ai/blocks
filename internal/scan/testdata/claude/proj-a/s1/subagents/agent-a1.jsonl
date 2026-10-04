@@ -1,0 +1,2 @@
+{"type": "assistant", "timestamp": "2026-10-03T10:00:00Z", "sessionId": "s1", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "tu", "name": "Bash", "input": {"command": "python3 - <<'PY'\nimport json\nrows = [json.loads(l) for l in open('runs/b.jsonl')]\nprint(len(rows))\nprint(rows[0])\nPY"}}]}}
+not json at all, but mentions "tool_use"

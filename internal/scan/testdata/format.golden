@@ -1,0 +1,8 @@
+Inline scripts your agents wrote, grouped by shape (measured, from local transcripts)
+
+    5x  import json; d = json.load(open('runs/a.json')); print(len(…  ~3 lines  4 sessions  covered by: json-peek
+    2x  from collections import Counter; import json; c = Counter()…  ~4 lines  2 sessions  covered by: jsonl-stats
+
+Measured: 14 shell commands, 9 inline Python scripts, 2 shapes. Not grouped: 1 edits, 1 scripts without a shape.
+Read 5 transcript files (claude 3 files, 2 skipped; codex 1 files, 1 skipped; cursor 1 files, 1 skipped).
+Transcript formats are internal to each harness and may change; 4 lines or files were skipped.

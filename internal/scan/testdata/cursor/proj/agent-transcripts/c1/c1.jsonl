@@ -1,0 +1,4 @@
+{"role": "user", "message": {"content": [{"type": "text", "text": "hi"}]}}
+{"role": "assistant", "message": {"content": [{"type": "tool_use", "name": "Grep", "input": {"pattern": "x"}}, {"type": "tool_use", "id": "tu", "name": "Shell", "input": {"command": "python3 - <<'PY'\nimport json\nrows = [json.loads(l) for l in open('runs/b.jsonl')]\nprint(len(rows))\nprint(rows[0])\nPY"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use",
+{"role": "assistant", "message": {"content": [{"type": "tool_use", "id": "tu", "name": "Shell", "input": {"command": "npm test"}}]}}
