@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "phase": "pre",
+  "harness": "",
+  "session": "019a-sess",
+  "call_id": "call_9xZ",
+  "cwd": "/repo",
+  "command": "bash -lc 'python3 - <<'\\''EOF'\\''\nimport json\nEOF'"
+}

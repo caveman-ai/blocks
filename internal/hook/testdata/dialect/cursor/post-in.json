@@ -1,0 +1,16 @@
+{
+  "conversation_id": "conv-1",
+  "generation_id": "gen-7",
+  "model": "claude-sonnet",
+  "cursor_version": "2.4.0",
+  "workspace_roots": [
+    "/repo"
+  ],
+  "user_email": null,
+  "transcript_path": null,
+  "hook_event_name": "afterShellExecution",
+  "command": "cat data/a.json",
+  "output": "{}",
+  "duration": 12,
+  "sandbox": false
+}

@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "phase": "post",
+  "harness": "",
+  "session": "conv-1",
+  "call_id": "gen-7:c7b68ac37f364473",
+  "cwd": "/repo",
+  "command": "ls"
+}

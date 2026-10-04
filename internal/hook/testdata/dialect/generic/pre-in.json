@@ -1,0 +1,11 @@
+{
+  "protocol": 1,
+  "phase": "pre",
+  "harness": "myagent",
+  "session": "abc",
+  "call_id": "t1",
+  "cwd": "/repo",
+  "command": "cat x.json",
+  "output": null,
+  "extra_field": "ignored"
+}

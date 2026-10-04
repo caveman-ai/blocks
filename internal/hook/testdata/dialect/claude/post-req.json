@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "phase": "post",
+  "harness": "",
+  "session": "abc123",
+  "call_id": "toolu_01ABC",
+  "cwd": "/repo",
+  "command": "cat data/a.json"
+}
