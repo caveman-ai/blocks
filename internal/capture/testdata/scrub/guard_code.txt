@@ -1,0 +1,5 @@
+rows.sort(key=lambda r: r["count"]); resp = call(max_tokens=1024, token=args.token)
+TOKEN="$GH_TOKEN" gh api user; tokens = text.split(); key = "model"
+-- want --
+rows.sort(key=lambda r: r["count"]); resp = call(max_tokens=1024, token=args.token)
+TOKEN="$GH_TOKEN" gh api user; tokens = text.split(); key = "model"

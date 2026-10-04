@@ -1,0 +1,7 @@
+cat /Users/julb/Desktop/GitHub/caveman-blocks/internal/capture/testdata/scrub/guard_paths.txt
+open("internal/capture/testdata/scrub/prefix_slack_aws_google.txt")
+TOKEN_FILE = "~/.config/gh/hosts.yml"
+-- want --
+cat /Users/julb/Desktop/GitHub/caveman-blocks/internal/capture/testdata/scrub/guard_paths.txt
+open("internal/capture/testdata/scrub/prefix_slack_aws_google.txt")
+TOKEN_FILE = "~/.config/gh/hosts.yml"

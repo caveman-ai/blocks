@@ -1,0 +1,7 @@
+def test_extract_handles_heredoc_with_cd_prefix_and_env_vars():
+    HTTPServerConfigurationManagerFactoryBuilder.create_default_instance()
+    --output-format=stream-json-with-partial-messages
+-- want --
+def test_extract_handles_heredoc_with_cd_prefix_and_env_vars():
+    HTTPServerConfigurationManagerFactoryBuilder.create_default_instance()
+    --output-format=stream-json-with-partial-messages

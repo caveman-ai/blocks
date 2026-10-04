@@ -1,0 +1,3 @@
+curl -s -H 'Authorization: Bearer abc.def.ghi' -H "Cookie: sid=42; theme=dark" https://api.example.com/v1/me
+-- want --
+curl -s -H 'Authorization: «scrubbed»' -H "Cookie: «scrubbed»" https://api.example.com/v1/me

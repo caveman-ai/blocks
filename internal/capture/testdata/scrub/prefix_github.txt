@@ -1,0 +1,3 @@
+git push https://ghp_abcdefghijklmnopqrstuvwxyz0123@github.com/x/y.git; echo gho_ABCDEFGHIJKLMNOPQRSTUV0123 ghs_abcdefghijklmnopqrstuvwxyz
+-- want --
+git push https://«scrubbed»@github.com/x/y.git; echo «scrubbed» «scrubbed»

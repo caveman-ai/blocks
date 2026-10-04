@@ -1,0 +1,3 @@
+{"client_secret": "s3cr3t", "user": "bob", 'X-Api-Key': 'abc', "max_tokens": 1024}
+-- want --
+{"client_secret": "«scrubbed»", "user": "bob", 'X-Api-Key': '«scrubbed»', "max_tokens": 1024}

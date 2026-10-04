@@ -1,0 +1,3 @@
+git remote add origin ssh://git@github.com/org/repo.git
+-- want --
+git remote add origin ssh://git@github.com/org/repo.git
