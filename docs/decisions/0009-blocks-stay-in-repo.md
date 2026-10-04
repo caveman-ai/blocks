@@ -8,7 +8,7 @@ Public skill registries were abused within months (ClawHavoc, ToxicSkills). The 
 
 ## Decision
 
-The only public registry is the set of blocks in this repository's `blocks/` folder, written and reviewed here, embedded in the binary and installed with `blocks add`. There is no upload, publish or sync command for user blocks. A block a team writes is visible to exactly the people who can see the repo and moves only through branches and pull requests.
+The only public registry is the set of blocks in this repository's `blocks/` folder, written and reviewed here, embedded in the binary and installed with `caveman-blocks add`. In v0 the binary makes no network calls at all; `diff` and `update` against newer registry versions are phase 2. There is no upload, publish or sync command for user blocks. A block a team writes is visible to exactly the people who can see the repo and moves only through branches and pull requests.
 
 ## Consequences
 

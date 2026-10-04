@@ -8,7 +8,7 @@ The spec positioned Blocks as a hook pack inside Caveman Wrap, which already shi
 
 ## Decision
 
-This repository owns its installer, its per-agent hook adapters, its CLI and its release. It does not import from or depend on the `caveman` repository. Both can be installed side by side; the hook ordering is irrelevant because Blocks only appends to commands and Wrap documents that it does not change user commands.
+This repository owns its installer, its per-agent hook adapters, its CLI and its release. It does not import from or depend on the `caveman` repository. Both can be installed side by side; hook ordering is irrelevant because Blocks never modifies commands or denies them.
 
 ## Consequences
 

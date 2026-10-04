@@ -1,68 +1,68 @@
 # Agent-driven promotion
 
-Promotion turns a captured candidate into a committed block. The agent in the session does it. The CLI
+Promotion turns captured sightings into a committed block. The agent in the session does it. The CLI
 supplies deterministic tools and checks; it never calls a model.
 
 ## Why the agent, not a merger
 
 The agent that just wrote the script has the task context, knows which literals were incidental, and is a
-stronger model than anything the CLI could run locally. A separate merger with a small model would be
-slower, worse, and a second thing to trust. Promotion by the session agent also means blocks travel with
-the pull request that needed them, so review happens where review already happens.
+stronger model than anything the CLI could run locally. Promotion by the session agent also means blocks
+travel with the pull request that needed them, so review happens where review already happens.
 
 ## Trigger
 
-The hook attaches one line of context when a captured candidate's shape has been seen in two or more
-sessions, or when `.candidates/` holds five or more entries:
+The hook appends one sentence to a hint when a shape has sightings from two or more sessions, or when
+five or more shapes exist, once per session:
 
-> Blocks: 2 candidates repeat across sessions. Run `blocks promote` when the task is done.
+> Run caveman-blocks promote when the task is done.
 
-The agent decides when. Nothing interrupts the task.
+Nothing interrupts the task.
 
 ## The flow
 
 ```
-blocks promote                 # lists candidates ranked by repeat count, with shape and first command
-blocks promote <fingerprint>   # prints the promotion brief for one candidate
+caveman-blocks promote           # shapes ranked by sightings and sessions, with a one-line preview
+caveman-blocks promote <fp>      # the brief for one shape
 ```
 
-The brief is plain text the agent reads:
+The brief is plain text for the agent:
 
-1. The captured script and the command lines it ran under, with literals that varied across runs marked.
-2. The format reference: header fields, the eight rules, the lint rules.
-3. A proposed name (verb-noun) and the parameters implied by the varying literals.
-4. The exact next steps: write `.blocks/<name>.<ext>`, run `blocks lint <file>`, run `blocks verify
-   <name>`, run `blocks sync`, commit.
+1. The most recent sighting's script, scrubbed, and the command lines it ran under. Literals that
+   differ across sightings are listed as the likely parameters, with the values seen.
+2. A proposed name, a proposed `[params]` table from those literals, and a proposed `[provenance]`
+   table (`source = "candidate:<fp>"`, `sessions`, `created`).
+3. A link to [FORMAT.md](FORMAT.md) and the eight rules.
+4. The steps below, verbatim.
 
-The agent writes the file. Then:
+The agent writes `.blocks/<name>.py`, adds a fixture under `.blocks/fixtures/<name>/` if the example
+needs one, then:
 
 ```
-blocks lint .blocks/<name>.py    # header complete, params appear in code, prints JSON, no absolute paths
-blocks verify <name>             # runs `example` at HEAD; writes the verified stamp or quarantines
-blocks sync                      # regenerates INDEX.md and the managed AGENTS.md section
+caveman-blocks lint .blocks/<name>.py
+caveman-blocks verify <name>
+caveman-blocks sync
+git add .blocks AGENTS.md && git commit -m "blocks: add <name>"
 ```
 
-Commit policy comes from `config.toml`:
+In v0 the commit policy is text in the brief: commit on the current branch, which must not be the
+repository's default branch. `lint` emits `W001` on the default branch, found from `origin/HEAD`, then
+`init.defaultBranch`, then `main` or `master`. The block rides in whatever pull request the branch
+becomes. A `promote = "pr"` policy that branches and opens a pull request is phase 2.
 
-- `promote = "commit"` (default): the agent commits on the current branch. If the current branch is the
-  default branch, the CLI refuses and asks for a branch. The block then rides in whatever pull request the
-  branch becomes.
-- `promote = "pr"`: the agent commits on a `blocks/<name>` branch and opens a pull request.
-
-The candidate is deleted from `.candidates/` once the block passes verify.
+`verify` success records the shape's `fp` and the block name in `stats.jsonl`; `promote` stops listing a
+shape once a block carries its `fp` in `provenance.source`.
 
 ## Headless promotion
 
-For teams that want candidates promoted without a session, `blocks promote --headless --agent <claude|codex>`
-runs the same brief through the agent's non-interactive mode and applies the same checks. Same brief,
-same lint, same verify, same commit policy. This is a convenience over the interactive flow, not a
-different path, and it is out of scope for v0.
+`promote --headless --agent <claude|codex>` drives the same brief through an agent's non-interactive
+mode and applies the same checks. Same brief, same lint, same verify. Phase 2.
 
 ## Trust rules
 
-- A block cannot be promoted with undeclared effects. Lint fails if the script imports a network or
-  subprocess module without `effects` declaring it.
-- A block promoted from a single session is still a block. The header records `provenance.sessions`;
-  `blocks stats` surfaces blocks with one session and no later use so they can be retired.
+- Lint fails on undeclared effects below the inferred floor, so a block cannot be promoted with a
+  `read` header and a network import.
 - Verify must pass at promotion time. No stamp, no index entry.
-- Retirement is `blocks retire <name>`: removes the file and syncs the index. Git keeps the history.
+- `provenance.sessions = 1` is allowed. `stats` lists blocks with one source session and no later runs
+  so they can be retired.
+- Retirement is `caveman-blocks retire <name>`: removes the file and its fixtures and runs `sync`. Git
+  keeps the history.

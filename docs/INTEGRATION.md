@@ -29,7 +29,7 @@ Response:
 ```
 
 - `phase` is `pre` or `post`. `output` is set only on `post` and only by harnesses that provide it.
-- `action` is `allow` or `deny`. `reason` is for the agent on deny. `hint` is one line or empty.
+- `action` is `allow` in v0; `deny` is reserved (decision 0010). `reason` accompanies a deny. `hint` is one line or empty.
 - The response never contains a rewritten command. Decision 0003.
 - Unknown fields are ignored on input and never emitted on output. `protocol` is bumped only for a
   breaking change, and the binary answers the previous version for one major release.
@@ -66,8 +66,8 @@ pre_event = { name = "PreToolUse", matcher = "Bash" }
 post_event = {}                             # empty: pre-run hint is enough
 timeout = { value = 5, unit = "s" }
 command_field = "tool_input.command"
-capabilities = ["pre-deny", "pre-hint", "transcripts"]
-instruction_files = ["CLAUDE.md", "AGENTS.md"]
+capabilities = ["pre-hint", "transcripts"]
+instruction_files = ["AGENTS.md", "CLAUDE.md"]   # AGENTS.md gets the section; CLAUDE.md gets @.blocks/INDEX.md
 skills_dir = ".claude/skills"
 transcripts = "~/.claude/projects/*/*.jsonl"
 trust_note = "Hooks run after the folder is trusted in an interactive session."
@@ -81,8 +81,8 @@ pre_event = { name = "beforeShellExecution" }
 post_event = { name = "afterShellExecution" }
 timeout = { value = 5, unit = "s" }
 command_field = "command"
-capabilities = ["pre-deny", "post-hint", "transcripts-commands-only"]
-instruction_files = ["AGENTS.md", ".cursor/rules/blocks.mdc"]
+capabilities = ["post-hint", "transcripts-commands-only"]
+instruction_files = ["AGENTS.md"]
 skills_dir = ".agents/skills"
 transcripts = "~/.cursor/projects/*/agent-transcripts/*/*.jsonl"
 ```
@@ -98,8 +98,8 @@ The engine does not know which harness it serves. The profile's capabilities dec
 
 | Tier | Capabilities | What works | Harnesses today |
 |---|---|---|---|
-| A | `pre-deny`, `pre-hint` | everything, one event | Claude Code, Codex CLI |
-| B | `pre-deny`, `post-hint` | everything, two events | Cursor, Copilot CLI, Gemini CLI |
+| A | `pre-hint` | everything, one event | Claude Code, Codex CLI |
+| B | `post-hint` | everything, two events | Cursor, Copilot CLI, Gemini CLI |
 | C | none | rules, index, exports; no capture, no hints, no denies | Amp, OpenCode, Cline, anything that reads AGENTS.md |
 
 Tier C is not a degraded mode to apologize for. It is the passive layer every harness gets, and it is
@@ -127,5 +127,5 @@ conformance fixture. They are optional and separately versioned; the binary neve
 - No decision logic. If a harness needs special behavior, it is a capability flag the engine reads, never
   a branch on the harness name.
 - No command rewriting, even where the harness allows it.
-- No harness-specific state. The 60-second pre-to-post cache is keyed by `call_id` and shared.
+- No harness-specific state. The pre-to-post cache in the state dir is keyed by `call_id`, or by hash(session, cwd, command) when the harness gives no id, and shared.
 - No network. Adapters read stdin, write stdout, and touch exactly one config file on install.

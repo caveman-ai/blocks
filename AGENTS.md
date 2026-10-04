@@ -8,7 +8,7 @@ Thesis: [docs/THESIS.md](docs/THESIS.md). Format: [docs/FORMAT.md](docs/FORMAT.m
 
 - Read the decision that covers the area. Contradicting one needs a superseding record.
 - Hook behavior is defined by golden tables in `internal/hook/testdata/`. Change the table first.
-- First-party blocks are Python 3 standard library only and must pass `blocks lint` and `blocks verify`.
+- First-party blocks are Python 3.10+ standard library only and must pass `caveman-blocks lint` and `caveman-blocks verify`.
 
 ## Checks
 

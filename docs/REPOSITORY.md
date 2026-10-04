@@ -5,7 +5,7 @@
 | Concern | Choice | Why |
 |---|---|---|
 | CLI and hook | Go 1.26, one static binary, standard library plus `pelletier/go-toml/v2` and `spf13/cobra` only | Runs on every shell call; no runtime dependency on the user's machine; cross-compiles. Decision 0007 |
-| First-party blocks | Python 3.11+ standard library | Present on nearly every development machine, including Windows; stdlib keeps blocks dependency-free |
+| First-party blocks | Python 3.10+ standard library | Present on nearly every development machine, including Windows; stdlib keeps blocks dependency-free |
 | Regex | Go `regexp` (RE2) for `matches` patterns | Linear time; a block cannot hang the hook with a pathological pattern |
 | Tests | `go test` with golden tables; `testscript` for CLI end-to-end; Python `unittest` fixtures for blocks | Hermetic, fast, readable diffs |
 | Lint | `gofmt`, `go vet`, `golangci-lint` with the default set plus `errcheck` | Standard |
@@ -28,17 +28,18 @@ caveman-blocks/
       dialect/<name>/        claude, cursor, copilot, gemini, generic: parse + render (pure; conformance fixtures)
       profiles.toml          per-harness data: dialect, events, config path, capabilities, transcripts
       install/               config_format writers: insert, remove, status for each config file shape
-    capture/                 script extraction, edit filter, normalization, shape, candidates store
+    capture/                 script extraction, edit filter, normalization, shape, scrub, sightings store
+      callnames.go           the fixed call-name table used by the shape fingerprint
     scan/                    transcript readers (one per harness, versioned), grouping, report
     verify/                  run example at HEAD, check contract, write stamp
     registry/                embedded first-party blocks (go:embed), add, diff, update, lock file
     promote/                 brief rendering, candidate ranking, retire
-    runner/                  blocks run: exec, cap, spill, effects check
+    runner/                  caveman-blocks run: effects gate, path confinement, exec, cap, spill
     stats/                   append and summarize events
-    repo/                    find repo root and .blocks/, config.toml, instruction-file discovery
-  blocks/                    first-party blocks, one file each; README.md is the registry table
+    repo/                    repo root, .blocks/, config.toml at HEAD, state dir, default branch, instruction files
+  blocks/                    first-party blocks, one file each, plus fixtures/<name>/; README.md is the registry table
   testdata/
-    blocks/<name>/           fixtures each block's example needs
+    scrub/                   golden scrub cases
     repo/                    a small fixture repository for end-to-end tests
     transcripts/<harness>/   scrubbed transcript samples for scan readers
     hook/                    golden decision tables: command in, decision out
@@ -55,7 +56,7 @@ caveman-blocks/
 - `blockfile`, `index`, `hook` and the pure parts of `capture` and `scan` import nothing from the impure
   packages. They take values and return values. Every behavior change starts as a new golden row.
 - Adapters are the only code that knows a harness's field names. The engine sees `hook.Input`.
-- `registry` is the only package allowed to make network calls, and only in `add`, `diff` and `update`.
+- No package makes network calls in v0. When `diff` and `update` land, `registry` is the only one allowed to.
 - No package reads environment variables except `repo` (for `HOME` and `XDG_*`) and the adapters (for
   harness-specific paths).
 - Errors are values with a stable code (`F001` and friends for lint, `H001` for hook internals) so the
@@ -65,18 +66,18 @@ caveman-blocks/
 
 | Command | Purpose |
 |---|---|
-| `init` | Create `.blocks/`, gitignore lines, `config.toml`; run `sync` |
+| `init` | Create `.blocks/` and `config.toml`; run `sync` |
 | `hooks install\|uninstall\|status` | Per-machine hook entries for detected harnesses |
 | `add <name>` | Copy a first-party block into `.blocks/`, record in `blocks.lock`, `sync` |
-| `run <name> [--param v]` | Execute a block with cap, spill and effects check |
+| `run <name> [--param v]` | Execute a block: effects gate from committed config, path confinement, cap, spill |
 | `lint [path]` | Format and rule checks; exits non-zero with coded findings |
-| `verify [name\|--changed\|--all]` | Run examples, write stamps, quarantine failures |
+| `verify [name\|--changed\|--all] [--check]` | Run examples, write content-hash stamps, quarantine failures; `--check` writes nothing and fails |
 | `sync [--check]` | Regenerate `INDEX.md`, managed sections and exports; `--check` for CI |
 | `scan [--since 30d] [--harness x]` | Repeat table from local transcripts |
-| `promote [fingerprint]` | List candidates or print the promotion brief |
+| `promote [fp]` | List repeated shapes or print the promotion brief |
 | `retire <name>` | Remove a block and `sync` |
-| `diff [name]` / `update [name]` | Compare and refresh first-party blocks against the embedded registry |
+| `diff [name]` / `update [name]` | Phase 2: compare and refresh first-party blocks against a newer registry |
 | `export` | Write `SKILL.md` wrappers |
 | `stats [--since 7d]` | Summarize counted events |
-| `hook --harness <x>` | Entry point the harness calls; not for people |
+| `hook --harness <x>` | Entry point the harness calls; `generic` speaks the protocol in INTEGRATION.md |
 | `doctor` | Check binary path in hook configs, Python availability, trust state |

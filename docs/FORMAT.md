@@ -1,9 +1,12 @@
 # Block file format, v0
 
-A block is one executable file in `.blocks/` whose header is a TOML document inside a PEP 723 style
-inline-metadata fence with the type name `block`. The grammar is the PEP 723 grammar verbatim; only the
-type differs, and the specification requires tools that do not know a type to ignore it, so `uv run` and
-`pipx run` keep working on a block file (checked against uv 0.7.19 and the pipx source, 2026-10-03).
+A block is one executable Python file in `.blocks/` whose header is a TOML document inside a PEP 723
+style inline-metadata fence with the type name `block`. The grammar is the PEP 723 grammar verbatim; only
+the type differs, and the specification requires tools that do not know a type to ignore it, so `uv run`
+and `pipx run` keep working on a block file (checked against uv 0.7.19 and the pipx source, 2026-10-03).
+
+v0 supports Python 3.10 or later only. Shell and JavaScript blocks are later, additive extensions with a
+`//` fence variant for JavaScript. First-party blocks use the standard library only.
 
 ## Example
 
@@ -13,19 +16,22 @@ type differs, and the specification requires tools that do not know a type to ig
 # name = "json-peek"
 # summary = "Shape of a JSON or JSONL file: keys, row count, one sample. Never the data."
 # effects = "read"
-# example = "--path testdata/blocks/json-peek/sample.json --depth 1"
-# returns = "{ keys: [str], rows: int, sample: object, truncated: bool }"
+# example = ["--path", "$FIXTURES/sample.json", "--depth", "1"]
 # matches = ['json\.loads?\(', 'JSON\.parse\(']
 #
+# [returns]
+# keys = ["kind", "keys", "rows", "sample", "truncated"]
+# doc = "kind is object|array|jsonl; keys are top-level; sample is one element"
+#
 # [params]
-# path  = { type = "path", required = true, help = "JSON or JSONL file" }
+# path  = { type = "path", required = true, help = "JSON or JSONL file inside the repo" }
 # depth = { type = "int", default = 2, max = 10, help = "How deep to walk nested keys" }
 #
 # [provenance]
 # created = "2026-10-03"
 # source = "registry:json-peek@0.1.0"
 #
-# verified = "a1b2c3d 2026-10-03"
+# verified = "3f9a1c2b7d4e"
 # ///
 import argparse, json, sys
 ...
@@ -34,33 +40,33 @@ print(json.dumps(answer))
 
 ## Grammar
 
-- Header starts with the line `# /// block` and ends with the line `# ///`. Every line between is `#`
-  followed by a space and content, or a bare `#` for an empty line. Reference regex, from the
+- The header starts with the line `# /// block` and ends with the line `# ///`. Every line between is
+  `#` followed by a space and content, or a bare `#` for an empty line. Reference regex, from the
   specification: `(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$`.
 - One `block` header per file. A second one is an error.
 - The header must appear within the first 20 lines, after an optional shebang and encoding line.
-- v0 supports languages whose comment leader is `#`: Python and POSIX shell. A `//` leader for
-  JavaScript is a later, additive extension.
-- Content is TOML. Unknown keys are an error in lint, so typos cannot silently disable a feature.
+- Content is TOML. Unknown keys are an error in lint, so a typo cannot silently disable a feature.
 
 ## Fields
 
 | Key | Required | Written by | Rules |
 |---|---|---|---|
-| `name` | yes | author | 1–64 chars, `a-z`, `0-9`, `-`; no leading, trailing or double hyphen; equals the file name without extension. Same rules as the Agent Skills `name`, so export is lossless. |
-| `summary` | yes | author | One sentence, at most 120 characters. This is the index line and the exported skill description. Say what comes back, not what the script does internally. |
+| `name` | yes | author | 1–64 chars, `a-z`, `0-9`, `-`; no leading, trailing or double hyphen; equals the file name without `.py`. Same rules as the Agent Skills `name`, so export is lossless. Style: two or three kebab words, verb-noun or noun-noun (`json-peek`, `test-summary`). |
+| `summary` | yes | author | One sentence, at most 100 characters. This is the index line and the exported skill description. Say what comes back. |
 | `effects` | yes | author | One of `read`, `write-workspace`, `exec`, `network`, `external`. See below. |
-| `example` | yes | author | Arguments only, relative to the repo root. `blocks verify` runs the block with these arguments and this is the only test. |
-| `returns` | yes | author | Free-text shape of the JSON answer. Shown in the brief and the export. |
-| `matches` | no | author | RE2 patterns tested against the body of an inline script the agent is about to run. A hit produces a hint. At least one pattern is expected for blocks that replace a common script shape. |
-| `[params]` | no | author | One table per parameter: `type` (`str`, `int`, `float`, `bool`, `path`, `enum`), `required` or `default`, optional `help`, `min`, `max`, `values` for `enum`. |
-| `requires` | no | author | Executables the block needs on `PATH`, for example `["pytest"]`. Verify fails early with a clear message when one is missing. |
-| `[provenance]` | no | author or `promote` | `created`, `source` (`registry:<name>@<version>` or `session`), `sessions`, `runs`. |
-| `verified` | no | tool | `"<short-sha> <date>"`. Written by `blocks verify` on success. |
-| `state` | no | tool | Absent means active. `"quarantined"` is written by `blocks verify` on failure and removes the block from the index. |
+| `example` | yes | author | TOML array of argument strings. `$FIXTURES` expands to `.blocks/fixtures/<name>`. `verify` runs the block with these arguments from the repo root; this is the only test. |
+| `[returns]` | yes | author | `keys`: top-level keys the answer always contains; `verify` checks each is present. `doc`: free text. |
+| `matches` | no | author | RE2 patterns tested against the body of an inline script the agent is about to run. A hit produces a hint. Expected on every block that replaces a common script shape. |
+| `[params]` | no | author | One table per parameter: `type` (`str`, `int`, `float`, `bool`, `path`, `enum`), `required` or `default`, optional `help`, `min`, `max`, `values` for `enum`. `path` values must resolve inside the repo root; the runner rejects others. |
+| `requires` | no | author | Executables the block needs on `PATH`, for example `["pytest"]`. `verify` and `run` fail early with a clear message when one is missing. |
+| `[provenance]` | no | author | `created`, `source` (`registry:<name>@<version>` or `candidate:<fp>`), `sessions`. `promote` prints a proposed table for the agent to paste; nothing updates it afterwards. |
+| `verified` | no | tool | 12 hex characters: SHA-256 of the file with the `verified` and `state` lines removed, truncated. Written by `verify` on success. A block is in the index only when this value matches the current content. |
+| `state` | no | tool | Absent means active. `"quarantined"` is written by `verify` on failure. |
 
 The tool writes exactly two keys, `verified` and `state`, always as the last lines of the header, and
-never rewrites any other line. A diff of a verify run is therefore one or two lines.
+never rewrites any other line. A stamp is a content hash, not a commit, so verifying the same content
+twice is a no-op and the committed file never churns. Editing a block invalidates its stamp until
+`verify` runs again locally.
 
 ## Effects
 
@@ -72,37 +78,66 @@ never rewrites any other line. A diff of a verify run is therefore one or two li
 | `network` | Opens network connections. | no, until `allow_effects` in `config.toml` includes it |
 | `external` | Changes state outside the repo: pushes, deploys, sends, deletes elsewhere. | no, until allowed |
 
-Lint infers a minimum effect from the source. For Python: `urllib`, `http.client`, `socket`, `requests`,
-`httpx` imply `network`; `subprocess`, `os.system`, `os.exec*` imply at least `exec`; writes imply at
-least `write-workspace`. A declared effect below the inferred one fails lint. The inference is a floor,
-not a proof; review and `CODEOWNERS` on `.blocks/` remain the control for a header that lies.
+Enforcement is in the runner. `caveman-blocks run` reads `allow_effects` from the committed
+`config.toml` at `HEAD` (`git show HEAD:.blocks/config.toml`), never from the working tree, so an
+agent cannot grant itself an effect by editing the file; the grant has to be committed and therefore
+reviewed. `verify` applies the same gate and refuses to run a disallowed block.
+
+Lint infers a floor from the source: `urllib`, `http.client`, `socket`, `requests`, `httpx` imply
+`network`; `subprocess`, `os.system`, `os.exec*` imply at least `exec`; file writes imply at least
+`write-workspace`. A declared effect below the floor fails lint.
+
+Effects are hygiene, not a security boundary. A block run directly with `python3 .blocks/x.py`
+bypasses the runner, and a header can lie. The controls for that are `CODEOWNERS` on `.blocks/`, pull
+request review, and the fact that nothing in `.blocks/` runs unless an agent or person runs it.
 
 ## Calling convention
 
-- Parameters arrive as `--name value` flags. Booleans are bare flags. The block parses them itself with
-  the language's standard library; lint checks that each declared parameter name appears in the source
-  as `--name`.
+- Parameters arrive as `--name value` flags. Booleans are bare flags. The block parses them with
+  `argparse`; lint checks that every declared parameter appears as `--name` in an `add_argument` call and
+  that every `add_argument` name is declared. Flags passed to subprocesses are not inspected.
 - stdout is exactly one JSON object and nothing else. Progress and logs go to stderr.
 - Exit 0 means the answer is valid. Non-zero means failure, and the JSON object carries an `error`
   string. Usage errors exit 2.
-- The answer is small. `blocks run` caps stdout at 2 KB, spills the full text to `.blocks/.out/<id>.log`
-  and appends `"_full": "<path>"` to what the agent sees. Design the answer so the cap never triggers.
+- The answer is small. The runner caps stdout at 2 KB. On overflow the agent receives
+  `{"_truncated": true, "_full": "<state-dir>/out/<id>.log", "head": "<first 1 KB>"}` and the full text
+  is kept for 7 days. Design the answer so the cap never triggers.
 - Idempotent and non-interactive: no prompts, no reliance on being run once.
-- Composition: a block calls another block with `blocks run <name> ...` and parses the JSON. There is no
-  shared library.
+- Composition: a block calls another block with `caveman-blocks run <name> ...` and parses the JSON.
+  There is no shared library.
+- The runner invokes `python3 <file>` from the repo root; the file does not need an executable bit.
 
-## Index line
+## The eight rules
 
-`blocks sync` renders one line per active block, sorted by name, into `.blocks/INDEX.md` and into the
-managed section of each instruction file:
+Canonical text of the authoring pack, written verbatim by `sync` at the top of the managed section. 
+Changing a word here is a change to every repo's instruction file; it needs a pull request.
 
 ```
-json-peek   --path <path> [--depth 2]      Shape of a JSON or JSONL file: keys, row count, one sample.
+BLOCKS. Scripts in this repo are reusable blocks in .blocks/. Rules:
+1. Check the block index below first. If a block fits, run it. If one almost fits, add a param to it.
+2. A script you would run twice, or over ~10 lines, becomes a block, not a heredoc or a /tmp file.
+3. Inputs are params. No hardcoded paths, ids, ports or dates.
+4. Print one small JSON object: the answer, not the data. Filter, count and truncate in code.
+5. Exit 0 on success, non-zero with {"error": ...} on failure.
+6. Safe to re-run: idempotent, no prompts, cleans up after itself.
+7. Header first: name, summary, params, effects, example. caveman-blocks lint checks it.
+8. Compose: call existing blocks with caveman-blocks run instead of copying their code.
 ```
 
-Sorted by name so the text is deterministic across machines and the committed file never churns. More
-than `index_max` (default 40) active blocks fails `sync` with a request to retire some. Quarantined
-blocks are listed in a separate short section so the agent knows they exist but will not call them.
+## Index and managed section
+
+`sync` renders one line per indexed block, sorted by name, into `.blocks/INDEX.md` and into the
+`AGENTS.md` section bounded by `<!-- caveman-blocks:start -->` and `<!-- caveman-blocks:end -->`:
+
+```
+json-peek      --path <path> [--depth 2]       Shape of a JSON or JSONL file: keys, row count, one sample.
+```
+
+A block is indexed when it is active (no `state`) and its `verified` stamp matches its content.
+Sorted by name so the text is deterministic across machines. The whole section, rules included, has a
+byte budget of 3 KiB enforced by `sync`; the default `index_max` is 25 lines and each line is cut at 110
+characters. Exceeding the budget fails `sync` with a request to retire blocks or shorten summaries.
+Quarantined and unverified blocks are not listed; `caveman-blocks stats` shows them.
 
 ## Lint rules
 
@@ -111,25 +146,27 @@ blocks are listed in a separate short section so the agent knows they exist but 
 | F001 | Header present, within the first 20 lines, parses as TOML, one per file |
 | F002 | No unknown keys |
 | F003 | `name` valid and equal to the file name |
-| F004 | `summary` one line, at most 120 characters |
+| F004 | `summary` one line, at most 100 characters |
 | F005 | `effects` is a known value and not below the inferred floor |
-| F006 | `example` present and non-empty |
-| F007 | Every declared parameter appears as `--name` in the source; every `--flag` in the source is declared |
+| F006 | `example` is a non-empty array of strings |
+| F007 | Declared params and `add_argument` names match both ways |
 | F008 | `matches` patterns compile as RE2 |
 | F009 | No absolute home paths (`/Users/`, `/home/`, `C:\Users\`) in the source |
-| F010 | Source prints JSON: `json.dumps` or an equivalent appears; nothing else writes to stdout |
-| F011 | Shebang present and the file is executable |
-| F012 | First-party blocks only: imports are Python standard library |
+| F010 | `json.dumps` appears and no other `print` or `sys.stdout.write` targets stdout |
+| F011 | `returns.keys` non-empty |
+| F012 | First-party blocks only: imports are standard library |
+| W001 | Warning: current branch is the repository's default branch (see AGENT-PROMOTION) |
 
 ## Export
 
-`blocks export` writes a `SKILL.md` per active block for agents without the hook or the CLI:
-`.claude/skills/<name>/SKILL.md` for Claude Code and `.agents/skills/<name>/SKILL.md` for the clients that
-read the shared path. The frontmatter is `name` and `summary`; the body is the parameter table and the
-two call forms, `blocks run <name> ...` and `python3 .blocks/<name>.py ...`. Export output is generated
-and may be committed; `sync --check` in CI fails when it is stale.
+`caveman-blocks export` writes a `SKILL.md` per indexed block for agents without the hook or the CLI:
+`.claude/skills/<name>/SKILL.md` for Claude Code and `.agents/skills/<name>/SKILL.md` for clients that
+read the shared path. Frontmatter is `name` and `description` (the summary); the body is the parameter
+table and the call `caveman-blocks run <name> ...`, with `python3 .blocks/<name>.py ...` as the fallback
+when the CLI is absent, noted as unenforced. Export output is generated and committed; `sync --check`
+fails in CI when it is stale.
 
 ## Versioning the format
 
-Additive changes add optional keys. A breaking change renames the fence type (`# /// block2`) and the tool
-reads both for one major version. There is no version field.
+Additive changes add optional keys. A breaking change renames the fence type (`# /// block2`) and the
+tool reads both for one major version. There is no version field.

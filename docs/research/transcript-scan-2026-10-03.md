@@ -23,7 +23,7 @@ prefer Bash over Edit, which inflates "edit-file-in-place".
 | Category | Share | Block candidate? |
 |---|---|---|
 | Edit a file in place (read, replace, write) | 51% | No. It is an edit, not a procedure. Exclude from capture. |
-| Load JSON/JSONL and print a summary | 29% | Yes: json-peek, jsonl-stats |
+| Load JSON/JSONL and print a summary | 29% (co-occurrence, overlapping; upper bound) | Yes: json-peek, jsonl-stats |
 | Run tests, pipe to tail/grep | 13% | Yes: test-summary |
 | Read a slice of a file | 11% | Covered by sed -n; no block |
 | Aggregate / Counter / statistics | 9% | Yes: jsonl-stats |
@@ -36,11 +36,13 @@ prefer Bash over Edit, which inflates "edit-file-in-place".
 ## Conclusions
 1. Agent scripts are ephemeral heredocs inside Bash, not files. The spec's capture trigger ("a file the agent
    wrote and then executed") would miss 99% of them. Capture = look at Bash heredocs. Claude Code already keeps
-   them in transcripts, so a scan is enough; no live capture needed for the MVP.
+   them in transcripts, so a scan is enough to *measure* the problem before anything is installed. Live
+   capture is still needed for in-session hints and for promotion briefs (decision 0010).
 2. Repo-specific re-derivation is real but small at the exact level. Shape-level repetition is huge
    ("import json; json.load; print" alone is 2,800 runs). The reusable unit is a generic, parameterized block,
    not a mined repo procedure. First-party registry first; mining later.
-3. Scripts already return small answers. Plain commands are what flood the context. The output cap pays most
-   on cat/grep/git/go test, so the runner wrapper matters more than any block.
+3. Scripts already return small answers. Plain commands are what flood the context. A cap on raw command
+   output would pay most on cat/grep/git/go test, but harnesses already cap it and Caveman Wrap compresses it,
+   so Blocks leaves that stream alone and only hints toward a block when a structured file is dumped.
 4. Agents almost never parameterize or emit JSON. The 8-rule authoring pack targets exactly the missing 97%.
 5. Half of all scripts are edits. Any capture must filter them out or the candidate folder fills with noise.

@@ -8,10 +8,10 @@ test, and the commit it last passed on. Agents call blocks instead of rewriting 
 leave the repo.
 
 ```
+npx caveman-blocks scan          # what your agents rewrote last month, from their own transcripts
 npx caveman-blocks init          # .blocks/ in this repo, rules + index in your AGENTS.md
-caveman-blocks hooks install     # one pre-run hook per agent on this machine, once
-caveman-blocks scan              # what your agents rewrote last month, from their own transcripts
-caveman-blocks add json-peek     # a first-party block, copied into your repo; you own it
+caveman-blocks hooks install     # hooks for the agents on this machine, once; copies the binary to a stable path
+caveman-blocks add json-peek     # a first-party block and its fixture, copied into your repo; you own it
 ```
 
 Status: foundation. The design is written; the binary is not. Start with [docs/THESIS.md](docs/THESIS.md).
@@ -21,14 +21,14 @@ Status: foundation. The design is written; the binary is not. Start with [docs/T
 - **Rules.** Eight short lines in your instruction file teach agents to write scripts that take
   parameters, return a small JSON answer, and import existing blocks.
 - **Index.** One line per block, in the same file, in the cached prompt prefix. At most forty.
-- **Hook.** One pre-run hook on the shell tool. It captures scripts agents write, hints when one matches a
-  block, and denies only an exact repeat of a block that already exists. It never rewrites a command.
-- **Promotion.** The agent in the session turns a captured script into a block with `blocks promote`,
+- **Hook.** One pre-run hook on the shell tool. It captures scripts agents write and hints when one matches
+  a block. It never denies or rewrites a command, and it writes nothing inside your repo.
+- **Promotion.** The agent in the session turns a captured script into a block from a `promote` brief,
   then `lint`, `verify`, `sync`. The block rides in the pull request that needed it.
-- **Verification.** `blocks verify` runs each block's example at HEAD and stamps the commit into the file.
-  A failure quarantines the block out of the index. One line in CI.
-- **Counting.** Scripts captured, hints followed, block calls, bytes kept out of context. Measured,
-  labelled, local. No dollar figures.
+- **Verification.** `caveman-blocks verify` runs each block's example and stamps a content hash into the
+  file. A failure quarantines the block out of the index. CI re-checks without writing.
+- **Counting.** Scripts captured, hints followed, block calls, block output withheld. Measured, labelled,
+  local. No dollar figures.
 
 ## Documents
 
@@ -47,8 +47,8 @@ Status: foundation. The design is written; the binary is not. Start with [docs/T
 
 ## Supported agents
 
-Claude Code, Codex CLI, Cursor, GitHub Copilot CLI, Gemini CLI through hooks. Any agent that reads
-`AGENTS.md` or Agent Skills gets the rules, the index and exported skills without the hook.
+Hooks: Claude Code, Codex CLI and Cursor in v0; GitHub Copilot CLI and Gemini CLI in phase 2. Any agent
+that reads `AGENTS.md` or Agent Skills gets the rules, the index and exported skills without the hook.
 
 ## License
 
