@@ -241,7 +241,7 @@ func Brief(sh capture.Shape, proposedName string) string {
 		w("#\n")
 	}
 	w("# [provenance]\n")
-	w("# created = %q\n", now().Format("2006-01-02"))
+	w("# created = %q\n", now().UTC().Format("2006-01-02"))
 	w("# source = %q\n", "candidate:"+sh.FP)
 	w("# sessions = %d\n\n", sh.Sessions)
 
@@ -307,24 +307,33 @@ func Retire(root, name string) error {
 	if !registry.ValidName(name) {
 		return fmt.Errorf("invalid block name %q", name)
 	}
+	// Both paths are checked before anything is deleted, so a symlinked fixtures dir leaves the
+	// block in place.
 	p, err := repo.SafePath(root, ".blocks/"+name+".py")
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(p); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("no block %q in %s: %w", name, filepath.Dir(p), err)
-		}
-		return err
-	}
-	if err := repo.RemoveAllSafe(root, ".blocks/fixtures/"+name); err != nil {
+	fx, err := repo.SafePath(root, ".blocks/fixtures/"+name)
+	if err != nil {
 		return err
 	}
 	lock, err := registry.Lock(root)
 	if err != nil {
 		return err
 	}
-	if _, ok := lock[name]; !ok {
+	_, locked := lock[name]
+	// A missing .py is tolerated so a retry after a partial retire finishes the job.
+	if err := os.Remove(p); errors.Is(err, fs.ErrNotExist) {
+		if _, err := os.Lstat(fx); errors.Is(err, fs.ErrNotExist) && !locked {
+			return fmt.Errorf("no block %q in %s: %w", name, filepath.Dir(p), fs.ErrNotExist)
+		}
+	} else if err != nil {
+		return err
+	}
+	if err := os.RemoveAll(fx); err != nil {
+		return err
+	}
+	if !locked {
 		return nil
 	}
 	delete(lock, name)

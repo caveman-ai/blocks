@@ -139,7 +139,7 @@ func promoteCmd() *cobra.Command {
 			w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "FP\tSIGHTINGS\tSESSIONS\tLAST\tPREVIEW")
 			for _, cd := range cands {
-				fmt.Fprintf(w, "%s\t%d\t%d\t%s\t%s\n", cd.FP, cd.Count, cd.Sessions, cd.Last.Local().Format("2006-01-02"), cd.Preview)
+				fmt.Fprintf(w, "%s\t%d\t%d\t%s\t%s\n", cd.FP, cd.Count, cd.Sessions, cd.Last.UTC().Format("2006-01-02"), cd.Preview)
 			}
 			w.Flush()
 			fmt.Fprintln(out, "\nNext: caveman-blocks promote <fp> prints the brief for one shape.")

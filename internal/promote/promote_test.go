@@ -214,4 +214,37 @@ func TestRetireRefusesSymlinkedFixtures(t *testing.T) {
 	if _, err := os.Stat(victim); err != nil {
 		t.Errorf("outside file removed: %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(root, ".blocks", "x.py")); err != nil {
+		t.Errorf("block removed although retire failed: %v", err)
+	}
+}
+
+// TestRetireRetry: a retire that removed the .py but not the rest finishes on a second run.
+func TestRetireRetry(t *testing.T) {
+	root := t.TempDir()
+	blocks := filepath.Join(root, ".blocks")
+	os.MkdirAll(filepath.Join(blocks, "fixtures", "x"), 0o755)
+	registry.WriteLock(root, map[string]registry.LockEntry{"x": {Source: "registry:x@0.1.0", Version: "0.1.0", Hash: "h"}})
+	if err := Retire(root, "x"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(blocks, "fixtures", "x")); !os.IsNotExist(err) {
+		t.Error("fixtures kept")
+	}
+	if lock, _ := registry.Lock(root); len(lock) != 0 {
+		t.Errorf("lock = %v", lock)
+	}
+}
+
+// TestBriefDatesUTC: the brief's dates are UTC days whatever the local zone.
+func TestBriefDatesUTC(t *testing.T) {
+	east := time.FixedZone("+14", 14*3600)
+	defer func() { now = func() time.Time { return day } }()
+	now = func() time.Time { return time.Date(2026, 10, 4, 1, 0, 0, 0, east) } // 2026-10-03 in UTC
+	sh := shape()
+	sh.Last = now()
+	got := Brief(sh, "")
+	if !strings.Contains(got, `created = "2026-10-03"`) || strings.Contains(got, "2026-10-04") {
+		t.Errorf("brief dates are not UTC:\n%s", got)
+	}
 }
