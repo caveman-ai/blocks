@@ -1,0 +1,10 @@
+/dist/
+/bin/
+*.test
+coverage.out
+.DS_Store
+node_modules/
+# Blocks runtime state inside this repo's own dogfood setup
+.blocks/.candidates/
+.blocks/.out/
+.blocks/.stats.jsonl
