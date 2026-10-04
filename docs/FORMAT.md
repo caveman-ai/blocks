@@ -66,7 +66,8 @@ print(json.dumps(answer))
 | `[stamp]` | no | tool | The only table the tool writes. Always last in the header. `verified`: 12 hex characters of the content hash below. `state`: absent means active; `"quarantined"` is written on failure and removed on the next success. |
 
 The content hash is SHA-256, truncated to 12 hex, over: the block file with CRLF normalized to LF and
-the lines from `# [stamp]` to the closing fence removed, followed by the sorted list of
+the lines from `# [stamp]` to the closing fence removed, together with the bare `#` separator line above
+them, followed by the sorted list of
 `(relative path, SHA-256)` for every file under `.blocks/fixtures/<name>/`. A fixture edit therefore
 invalidates the stamp too. A block is in the index only when `verified` equals the current hash. The
 tool rewrites the `[stamp]` table and nothing else, so verifying unchanged content is a no-op and the
