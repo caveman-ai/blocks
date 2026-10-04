@@ -88,7 +88,7 @@ harness in `internal/scan/readers.go`. `export` has fixed targets, `.claude/skil
 `.agents/skills/`. Adding a harness that speaks an existing dialect and an existing config format is
 one table. A harness with a new
 config file shape needs one `config_format` writer, a small function that knows how to insert and remove
-our entry idempotently, identified by a marker key.
+our entry idempotently, identified by matching the exact command the installer wrote.
 
 ## Layer 4: capability tiers
 

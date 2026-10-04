@@ -9,8 +9,8 @@
 | Regex | Go `regexp` (RE2) for `matches` patterns | Linear time; a block cannot hang the hook with a pathological pattern |
 | Tests | `go test` with golden tables; `testscript` for CLI end-to-end; Python `unittest` fixtures for blocks | Hermetic, fast, readable diffs |
 | Lint | `gofmt`, `go vet` (`make lint`) | Standard |
-| Release | GoReleaser: GitHub releases with checksums, `homebrew_casks`, signed and notarized macOS binaries; hand-written `install.sh`; npm shim plus per-platform packages published by CI | Decision 0007 |
-| CI | GitHub Actions: `test`, `lint`, `e2e`, `bench-hook` on macOS and Linux; Windows builds and runs unit tests only in v0 | Hook budget enforced in CI |
+| Release | GoReleaser: GitHub releases with checksums, `homebrew_casks` (skipped for prereleases); hand-written `install.sh`; npm shim plus per-platform packages published by CI, prereleases under the `next` tag. macOS signing and notarization are NOT configured yet; until they are, Homebrew users will hit Gatekeeper and the cask is not published | Decision 0007 |
+| CI | GitHub Actions: `test`, `lint`, `e2e`, `bench-hook`, `blocks-test`, `blocks-verify` on macOS and Linux. No Windows job in v0; the binary cross-compiles but is untested there | Hook budget enforced in CI |
 | Docs | Markdown in `docs/`, decision records in `docs/decisions/` | Rationale next to code |
 
 Not used: a model API, embeddings, tree-sitter, a database, a daemon, telemetry.

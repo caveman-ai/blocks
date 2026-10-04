@@ -185,8 +185,8 @@ so in `import` mode it pays one file read per session.
 | F010 | `json.dumps` appears and no other `print` or `sys.stdout.write` targets stdout |
 | F011 | `returns.keys` non-empty |
 | F012 | `--first-party` only (used by this repo's CI): stdlib-only imports, one import per line |
-| F015 | Fixtures readable: regular files only, no symlinks, at most 64 KiB per block; an oversized block stays out of the index |
 | F013 | `name` is not a Python standard-library module name (`json`, `csv`, `glob`, `http`, `time`, …): the runner starts `python3 .blocks/<name>.py`, which puts `.blocks/` first on `sys.path`, so `.blocks/json.py` would break `import json` in every block |
+| F015 | Fixtures readable: regular files only, no symlinks, at most 64 KiB per block; an oversized block stays out of the index |
 | W001 | Warning: current branch is the repository's default branch (see AGENT-PROMOTION) |
 | W002 | Warning: a `matches` pattern looks like shell, not Python (contains a backslash-escaped pipe, `grep `, `tail `, `curl ` or `until `); it is tested only against the Python body, so it never fires |
 

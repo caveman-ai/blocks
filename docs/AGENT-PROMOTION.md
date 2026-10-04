@@ -12,7 +12,7 @@ travel with the pull request that needed them, so review happens where review al
 ## Trigger
 
 The hook appends one sentence to a hint when a shape has sightings from two or more sessions, or when
-five or more shapes exist, once per session:
+five or more shapes exist, at most once per shape per day:
 
 > Run caveman-blocks promote when the task is done.
 

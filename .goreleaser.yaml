@@ -31,7 +31,9 @@ homebrew_casks:
     homepage: https://github.com/JuliusBrussee/caveman-blocks
     description: Your agents write each script once, well, and reuse it.
     license: Apache-2.0
+    skip_upload: auto   # prereleases do not reach the tap
 # macOS signing and notarization are required before a public release (docs/decisions/0007);
 # add `notarize:` once an Apple Developer ID is available.
 release:
   draft: false
+  prerelease: auto

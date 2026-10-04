@@ -68,7 +68,7 @@ run at the repo root, so every worktree of one repository shares state, falling 
 absolute path outside git:
 
 ```
-candidates/<fp>.jsonl   one line per sighting: {ts, session, script_sha, lines, literals: [...], command_head}
+candidates/<fp>.jsonl   one line per sighting: {ts, session, script_sha, lines, literals: [...], command_head, script}
 out/<id>.log            full block outputs written by the runner
 stats.jsonl             counted events
 hook.log                internal errors, rate limited to one line per minute
@@ -135,8 +135,8 @@ Adapters are dialect plus profile; see [INTEGRATION.md](INTEGRATION.md).
 | Amp, OpenCode, Cline | plugin APIs | | | | later | Passive layer only; optional shims under `integrations/`. |
 
 `hooks install` never touches project-level hook files. `hooks status` shows which harnesses are
-installed and, for Codex, whether the hook is trusted. `hooks uninstall` removes exactly the entries it
-wrote, identified by a marker key.
+installed and prints Codex's trust note (trust state itself is only visible inside Codex's `/hooks`). `hooks uninstall` removes exactly the entries it
+wrote, identified by matching the exact command the installer wrote.
 
 ## Instruction files
 

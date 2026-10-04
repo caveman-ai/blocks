@@ -5,7 +5,9 @@ set -eu
 : "${VERSION:?set VERSION}"
 DRY=${1:-}
 root=$(cd "$(dirname "$0")/.." && pwd)
-pub() { if [ "$DRY" = "--dry-run" ]; then echo "would publish $1"; else (cd "$1" && npm publish --access public); fi; }
+# Prereleases (anything with a hyphen, e.g. 0.1.0-rc.1) publish under the "next" dist-tag, never "latest".
+case $VERSION in *-*) TAG="--tag next";; *) TAG="";; esac
+pub() { if [ "$DRY" = "--dry-run" ]; then echo "would publish $1 $TAG"; else (cd "$1" && npm publish --access public $TAG); fi; }
 for target in darwin_arm64 darwin_amd64 linux_arm64 linux_amd64 windows_amd64; do
   os=${target%_*}; arch=${target#*_}
   case $os in windows) nos=win32; exe=.exe;; *) nos=$os; exe=;; esac
