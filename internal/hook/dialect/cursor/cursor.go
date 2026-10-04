@@ -20,9 +20,10 @@ type input struct {
 	WorkspaceRoots []string `json:"workspace_roots"`
 }
 
-type preOutput struct {
-	Permission string `json:"permission"`
-}
+// preOutput is intentionally empty: the hook must never widen permissions, and an explicit
+// "allow" could skip Cursor's own command approval. Cursor treats a valid JSON object with no
+// permission field as "no opinion"; confirmed during phase 1 dogfood.
+type preOutput struct{}
 
 type postOutput struct {
 	AdditionalContext string `json:"additional_context,omitempty"`
@@ -59,11 +60,11 @@ func Parse(stdin []byte) (protocol.Request, error) {
 	return r, nil
 }
 
-// Render answers beforeShellExecution with a plain allow, since it has no context field, and
-// afterShellExecution with the hint as additional_context.
+// Render answers beforeShellExecution with an empty object, since it has no context field and we
+// never decide permissions, and afterShellExecution with the hint as additional_context.
 func Render(resp protocol.Response, phase string) ([]byte, error) {
 	if phase == "post" {
 		return json.Marshal(postOutput{AdditionalContext: resp.Hint})
 	}
-	return json.Marshal(preOutput{Permission: "allow"})
+	return json.Marshal(preOutput{})
 }

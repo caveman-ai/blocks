@@ -114,7 +114,7 @@ Adapters are dialect plus profile; see [INTEGRATION.md](INTEGRATION.md).
 |---|---|---|---|---|---|---|
 | Claude Code | `PreToolUse`, `"matcher": "Bash"` | `hookSpecificOutput.additionalContext` | not needed | `~/.claude/settings.json` | 1 | Hooks wait for workspace trust in interactive sessions. Command at `tool_input.command`. |
 | Codex CLI | `PreToolUse`, matcher `Bash` | `additionalContext` (about 2,500 tokens cap) | not needed | `~/.codex/hooks.json` | 1 | Each new or changed hook is trusted once in `/hooks`; `install` prints that step. |
-| Cursor | `beforeShellExecution` | none | `afterShellExecution` → `additional_context` | `~/.cursor/hooks.json` | 1 | `preToolUse` is not reliable in the CLI. Cursor also loads Claude Code hook files by default; rule 2 dedupes. |
+| Cursor | `beforeShellExecution` | none | `afterShellExecution` → `additional_context` | `~/.cursor/hooks.json` | 1 | `preToolUse` is not reliable in the CLI. The pre-run response is `{}`, never `permission: allow`, so Cursor's own approval flow is untouched. Cursor also loads Claude Code hook files by default; rule 2 dedupes. |
 | Copilot CLI | `preToolUse`, tool `bash` | none | `postToolUse` → `additionalContext` | `~/.copilot/hooks/blocks.json` | 2 | Non-zero exit on pre denies. Always exit 0. `timeoutSec: 5`. |
 | Gemini CLI | `BeforeTool`, matcher `run_shell_command` | none | `AfterTool` → `additionalContext` | `~/.gemini/settings.json` | 2 | `timeout` in milliseconds: `5000`. |
 | Amp, OpenCode, Cline | plugin APIs | | | | later | Passive layer only; optional shims under `integrations/`. |
