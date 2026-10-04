@@ -20,8 +20,10 @@ var (
 	addArgRE    = regexp.MustCompile(`\badd_argument\(`)
 	flagRE      = regexp.MustCompile(`["'](--[A-Za-z0-9][A-Za-z0-9_-]*)["']`)
 	openRE      = regexp.MustCompile(`\bopen\(`)
-	writeCallRE = regexp.MustCompile(`\.write_(text|bytes)\(|\bos\.(remove|rename|makedirs)\(`)
-	execCallRE  = regexp.MustCompile(`\bos\.(system|exec\w*)\(`)
+	writeCallRE = regexp.MustCompile(`\.write_(text|bytes)\(|\.(unlink|touch|mkdir|rename)\(|\bos\.(remove|makedirs)\(|\bshutil\.(copy\w*|move|rmtree)\(`)
+	execCallRE  = regexp.MustCompile(`\bos\.(system|exec\w*|popen|spawn\w*)\(|\basyncio\.create_subprocess_\w+\(`)
+	netCallRE   = regexp.MustCompile(`\basyncio\.open_connection\(`)
+	shellRE     = regexp.MustCompile(`\\\||\b(grep|tail|curl|until) `)
 	clientRE    = regexp.MustCompile(`\bclient\b`)
 )
 
@@ -65,6 +67,9 @@ func lint(b *Block, opts LintOptions) []Finding {
 	case b.Path != "" && strings.TrimSuffix(filepath.Base(b.Path), ".py") != h.Name:
 		add("F003", hline("name"), "name %q must equal the file name %q", h.Name, filepath.Base(b.Path))
 	}
+	if stdlib[h.Name] { // python3 .blocks/x.py puts .blocks/ first on sys.path, so json.py breaks `import json`
+		add("F013", hline("name"), "name %q shadows a Python standard-library module", h.Name)
+	}
 
 	switch n := utf8.RuneCountInString(h.Summary); {
 	case strings.TrimSpace(h.Summary) == "":
@@ -92,6 +97,9 @@ func lint(b *Block, opts LintOptions) []Finding {
 	for _, p := range h.Matches {
 		if _, err := regexp.Compile(p); err != nil {
 			add("F008", hline("matches"), "matches pattern %q is not valid RE2: %v", p, err)
+		}
+		if shellRE.MatchString(p) { // the hook tests only the Python body, so a shell pattern never fires
+			add("W002", hline("matches"), "matches pattern %q looks like shell, not Python", p)
 		}
 	}
 
@@ -181,15 +189,19 @@ func effectFloor(code string, imports []pyImport) (Effect, string, int) {
 	for _, im := range imports {
 		top := strings.Split(im.module, ".")[0]
 		switch {
-		case top == "socket" || top == "requests" || top == "httpx",
+		case top == "socket" || top == "requests" || top == "httpx" || top == "smtplib" || top == "ftplib" ||
+			top == "ssl" || top == "xmlrpc" || top == "urllib3" || top == "aiohttp" || top == "websockets",
 			im.module == "http.client",
 			im.module == "http" && clientRE.MatchString(im.names),
 			// ponytail: urllib.parse does no I/O, so it alone does not imply network.
 			top == "urllib" && im.module != "urllib.parse" && !(im.module == "urllib" && strings.TrimSpace(im.names) == "parse"):
 			raise(EffectNetwork, "imports "+im.module, im.line)
-		case top == "subprocess":
-			raise(EffectExec, "imports subprocess", im.line)
+		case top == "subprocess" || top == "pty" || top == "multiprocessing":
+			raise(EffectExec, "imports "+top, im.line)
 		}
+	}
+	if loc := netCallRE.FindStringIndex(code); loc != nil {
+		raise(EffectNetwork, "calls asyncio.open_connection", lineAt(code, loc[0]))
 	}
 	if loc := execCallRE.FindStringIndex(code); loc != nil {
 		raise(EffectExec, "calls "+strings.TrimSuffix(code[loc[0]:loc[1]], "("), lineAt(code, loc[0]))

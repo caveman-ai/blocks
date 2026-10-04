@@ -1,0 +1,34 @@
+{
+  "header": {
+    "Name": "write-floor",
+    "Summary": "Moves a build output aside and removes the stale marker.",
+    "Effects": "read",
+    "Example": [
+      "--quiet"
+    ],
+    "Matches": null,
+    "Returns": {
+      "Keys": [
+        "moved"
+      ],
+      "Doc": ""
+    },
+    "Params": null,
+    "Requires": null,
+    "Provenance": null,
+    "Stamp": null
+  },
+  "fences": [
+    1,
+    9,
+    -1
+  ],
+  "hash": "8b52f5327680",
+  "findings": [
+    {
+      "Code": "F005",
+      "Message": "effects \"read\" is below the inferred floor \"write-workspace\" (calls shutil.move)",
+      "Line": 15
+    }
+  ]
+}

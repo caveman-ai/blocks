@@ -90,7 +90,7 @@ type Block struct {
 	FenceStart, FenceEnd, StampLine int
 }
 
-// Finding is one lint result. Codes: F001..F012, W001 (docs/FORMAT.md).
+// Finding is one lint result. Codes: F001..F013, W001, W002 (docs/FORMAT.md).
 type Finding struct {
 	Code    string
 	Message string
