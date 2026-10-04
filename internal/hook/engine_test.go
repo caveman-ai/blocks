@@ -354,3 +354,25 @@ func TestSightingScriptCapped(t *testing.T) {
 		t.Fatalf("script %d bytes, want a valid prefix of at most 16 KiB", len(got.Script))
 	}
 }
+
+// TestSightingHasNoSecrets runs rule 7 with the real capture package: the reviewer's secrets must
+// not reach any field of the stored sighting.
+func TestSightingHasNoSecrets(t *testing.T) {
+	body := "import json, urllib.request\nhexkey = \"abcd1234efgh5678\"\nh = {\"X-Api-Key\": \"zzzz9999yyyy8888\"}\n" +
+		"print(\"abcd1234efgh5678\")\n" + strings.Repeat("print(json.dumps(h))\n", 8)
+	var got capture.Sighting
+	deps := stubDeps(newMemCache())
+	deps.Extract, deps.Scrub = capture.Extract, capture.Scrub
+	deps.Append = func(_ string, sg capture.Sighting) error { got = sg; return nil }
+	Decide(Config{RepoRoot: "/repo", Now: func() time.Time { return testNow }},
+		Input{Phase: PhasePre, Command: "python3 - <<'EOF'\n" + body + "EOF", Session: "s1"}, deps)
+	raw, _ := json.Marshal(got)
+	if got.Lines < 10 || len(got.Literals) == 0 {
+		t.Fatalf("no sighting captured: %s", raw)
+	}
+	for _, secret := range []string{"abcd1234efgh5678", "zzzz9999yyyy8888"} {
+		if strings.Contains(string(raw), secret) {
+			t.Errorf("secret %s stored: %s", secret, raw)
+		}
+	}
+}

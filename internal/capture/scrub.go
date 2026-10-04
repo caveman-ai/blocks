@@ -76,6 +76,13 @@ func scrub(s string) (string, []string) {
 		return rec(t)
 	})
 	s = reLong.ReplaceAllStringFunc(s, func(t string) string { return scrubToken(t, rec) })
+	// A secret scrubbed once is scrubbed everywhere: print(KEY_VALUE) after KEY = "..." must not
+	// keep it. Short spans (a user:pw) are too likely to be ordinary words.
+	for _, sp := range spans {
+		if len(sp) >= 8 && strings.Contains(s, sp) {
+			s = strings.ReplaceAll(s, sp, scrubbed)
+		}
+	}
 	return s, spans
 }
 
