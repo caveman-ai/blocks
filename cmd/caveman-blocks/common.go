@@ -68,7 +68,8 @@ func loadBlock(root, path string) (loaded, error) {
 		return loaded{}, err
 	}
 	h := blockfile.ContentHash(b, fx)
-	return loaded{b: b, fx: fx, hash: h, indexed: blockfile.Indexed(b, h)}, nil
+	// A header that fails Validate is never indexed: its name and params would reach the agent.
+	return loaded{b: b, fx: fx, hash: h, indexed: blockfile.Indexed(b, h) && blockfile.Validate(b) == nil}, nil
 }
 
 // blockByName loads .blocks/<name>.py.

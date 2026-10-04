@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
 	"github.com/JuliusBrussee/caveman-blocks/internal/capture"
 )
 
@@ -50,8 +51,8 @@ type Event struct {
 	OK      *bool     `json:"ok,omitempty"`
 }
 
-// BlockInfo is what the engine needs from one indexed block. The caller builds it from
-// blockfile.Block so this package never imports blockfile.
+// BlockInfo is what the engine needs from one indexed block. The caller builds it from a
+// blockfile.Block that passed blockfile.Validate; the engine checks the rendered parts again.
 type BlockInfo struct {
 	Name    string
 	Effects string           // blockfile.Effect value
@@ -227,7 +228,7 @@ func bestMatch(blocks []BlockInfo, body string, edit bool) *BlockInfo {
 	bestLen := -1
 	for i := range blocks {
 		b := &blocks[i]
-		if edit && b.Effects != "write-workspace" {
+		if (edit && b.Effects != "write-workspace") || !renderable(*b) {
 			continue
 		}
 		for _, re := range b.Matches {
@@ -244,6 +245,22 @@ func bestMatch(blocks []BlockInfo, body string, edit bool) *BlockInfo {
 	return best
 }
 
+// callArgs is the shape of the params part of a blockfile.CallHint.
+var callArgs = regexp.MustCompile(`^( --[a-z][a-z0-9_-]{0,31} <(str|int|float|bool|path|enum)>)*$`)
+
+// renderable reports whether b's name and call hint have the shape blockfile renders. Defense in
+// depth: a header that slipped past the caller's validation never reaches the agent as a command.
+func renderable(b BlockInfo) bool {
+	if !blockfile.ValidName(b.Name) {
+		return false
+	}
+	if b.Hint == "" {
+		return true
+	}
+	args, ok := strings.CutPrefix(b.Hint, "caveman-blocks run "+b.Name)
+	return ok && callArgs.MatchString(args)
+}
+
 // runHint renders `Blocks: <name> covers this. Next time: <call hint>`.
 func runHint(b BlockInfo) string {
 	call := b.Hint
@@ -258,7 +275,7 @@ func dumpHint(blocks []BlockInfo, ext, session string, c Cache) (hint, block str
 	fits := dumpBlocks[ext]
 	for _, name := range fits {
 		for _, b := range blocks {
-			if b.Name == name {
+			if b.Name == name && renderable(b) {
 				return runHint(b), name
 			}
 		}

@@ -7,7 +7,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"unicode/utf8"
 )
 
 var (
@@ -71,13 +70,10 @@ func lint(b *Block, opts LintOptions) []Finding {
 		add("F013", hline("name"), "name %q shadows a Python standard-library module", h.Name)
 	}
 
-	switch n := utf8.RuneCountInString(h.Summary); {
-	case strings.TrimSpace(h.Summary) == "":
+	if strings.TrimSpace(h.Summary) == "" {
 		add("F004", hline("summary"), "summary is required")
-	case strings.ContainsAny(h.Summary, "\r\n"):
-		add("F004", hline("summary"), "summary must be one line")
-	case n > 100:
-		add("F004", hline("summary"), "summary is %d characters; the limit is 100", n)
+	} else if err := checkSummary(h.Summary); err != nil {
+		add("F004", hline("summary"), "%v", err)
 	}
 
 	code := codeText(lines, b.FenceStart, b.FenceEnd)
@@ -94,6 +90,9 @@ func lint(b *Block, opts LintOptions) []Finding {
 
 	lintParams(h, code, hline, add)
 
+	if err := checkMatches(h.Matches); err != nil {
+		add("F008", hline("matches"), "%v", err)
+	}
 	for _, p := range h.Matches {
 		if _, err := regexp.Compile(p); err != nil {
 			add("F008", hline("matches"), "matches pattern %q is not valid RE2: %v", p, err)
@@ -166,6 +165,9 @@ func lintParams(h Header, code string, hline func(string) int, add func(string, 
 	}
 	var declared []string
 	for _, p := range h.Params {
+		if err := checkParam(p); err != nil {
+			add("F007", hline(p.Name), "%v", err)
+		}
 		declared = append(declared, p.Name)
 		if _, ok := flags[p.Name]; !ok {
 			add("F007", hline(p.Name), "param %q has no add_argument(\"--%s\")", p.Name, p.Name)

@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -42,12 +41,8 @@ type AddResult struct {
 	Entry    LockEntry
 }
 
-var validName = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
-
 // ValidName reports whether name is a legal block name (docs/FORMAT.md, `name`).
-func ValidName(name string) bool {
-	return len(name) <= 64 && validName.MatchString(name) && !blockfile.IsStdlib(name)
-}
+func ValidName(name string) bool { return blockfile.ValidName(name) }
 
 // List returns the embedded block names, sorted.
 func (r Registry) List() ([]string, error) {
