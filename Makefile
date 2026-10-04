@@ -1,4 +1,4 @@
-.PHONY: build test lint e2e bench-hook blocks-test check-instructions
+.PHONY: build test lint e2e bench-hook blocks-test blocks-verify check-instructions
 
 build:
 	go build -trimpath -ldflags="-s -w -X main.version=$$(git describe --tags --always)" -o bin/caveman-blocks ./cmd/caveman-blocks
@@ -16,10 +16,15 @@ e2e: build
 
 # Hook latency budget: rule-1 no-op under 5 ms, full decision under 30 ms (docs/ARCHITECTURE.md).
 bench-hook: build
-	go test -tags e2e ./cmd/... -run TestHookBudget -v
+	CAVEMAN_BLOCKS_BIN=$(CURDIR)/bin/caveman-blocks go test -tags e2e ./cmd/... -run TestHookBudget -v -count=1
 
 blocks-test:
 	python3 -m unittest blocks/tests/test_blocks.py
+
+# First-party blocks carry no stamp; --first-party passes each one whose example passes (docs/CI.md).
+blocks-verify:
+	go run ./cmd/caveman-blocks lint --first-party blocks
+	go run ./cmd/caveman-blocks verify --check --all --first-party --fixtures-root blocks/fixtures --blocks-dir blocks
 
 check-instructions:
 	test ! -e CLAUDE.md
