@@ -1,0 +1,82 @@
+# One table per harness (docs/INTEGRATION.md, layer 3). Facts from docs/research/harness-hooks-2026-10-03.md.
+# `hooks install`, `hooks status`, `export` and `scan` read this and nothing else.
+
+[claude-code]
+phase = 1
+dialect = "claude"
+detect = ["~/.claude"]
+config = "~/.claude/settings.json"
+config_format = "claude-settings"
+pre_event = { name = "PreToolUse", matcher = "Bash" }
+post_event = {}
+timeout = { value = 5, unit = "s" }
+command_field = "tool_input.command"
+capabilities = ["pre-hint", "transcripts"]
+instruction_files = ["AGENTS.md", "CLAUDE.md"]
+skills_dir = ".claude/skills"
+transcripts = "~/.claude/projects/*/*.jsonl"
+trust_note = "Hooks run after the folder is trusted in an interactive session."
+
+[codex]
+phase = 1
+dialect = "claude"
+detect = ["~/.codex"]
+config = "~/.codex/hooks.json"
+config_format = "codex-hooks"
+pre_event = { name = "PreToolUse", matcher = "Bash" }
+post_event = {}
+timeout = { value = 5, unit = "s" }
+command_field = "tool_input.command"
+capabilities = ["pre-hint", "transcripts"]
+instruction_files = ["AGENTS.md"]
+skills_dir = ".agents/skills"
+transcripts = "~/.codex/sessions/*/*/*/rollout-*.jsonl"
+trust_note = "Codex trusts each new or changed hook once: open /hooks in Codex and approve it."
+
+[cursor]
+phase = 1
+dialect = "cursor"
+detect = ["~/.cursor"]
+config = "~/.cursor/hooks.json"
+config_format = "cursor-hooks"
+pre_event = { name = "beforeShellExecution" }
+post_event = { name = "afterShellExecution" }
+timeout = { value = 5, unit = "s" }
+command_field = "command"
+capabilities = ["post-hint", "transcripts-commands-only"]
+instruction_files = ["AGENTS.md"]
+skills_dir = ".agents/skills"
+transcripts = "~/.cursor/projects/*/agent-transcripts/*/*.jsonl"
+trust_note = "Cursor also loads Claude Code hook files by default; the hook dedupes the double call."
+
+[copilot]
+phase = 2
+dialect = "copilot"
+detect = ["~/.copilot"]
+config = "~/.copilot/hooks/blocks.json"
+config_format = "copilot-hooks"
+pre_event = { name = "preToolUse", matcher = "bash" }
+post_event = { name = "postToolUse", matcher = "bash" }
+timeout = { value = 5, unit = "s" }
+command_field = "toolArgs.command"
+capabilities = ["post-hint", "transcripts"]
+instruction_files = ["AGENTS.md", "CLAUDE.md", "GEMINI.md"]
+skills_dir = ".agents/skills"
+transcripts = "~/.copilot/session-state/*/events.jsonl"
+trust_note = "A non-zero exit on preToolUse denies the command; the hook always exits 0."
+
+[gemini]
+phase = 2
+dialect = "gemini"
+detect = ["~/.gemini"]
+config = "~/.gemini/settings.json"
+config_format = "gemini-settings"
+pre_event = { name = "BeforeTool", matcher = "run_shell_command" }
+post_event = { name = "AfterTool", matcher = "run_shell_command" }
+timeout = { value = 5000, unit = "ms" }
+command_field = "tool_input.command"
+capabilities = ["post-hint", "transcripts"]
+instruction_files = ["AGENTS.md", "GEMINI.md"]
+skills_dir = ".agents/skills"
+transcripts = "~/.gemini/tmp/*/chats/session-*.json"
+trust_note = "Gemini reads AGENTS.md only when configured; GEMINI.md gets the import line."
