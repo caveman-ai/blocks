@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://github.com/caveman-ai/blocks"><img src="docs/assets/banner.png" alt="Caveman / Blocks. Why many script when few do trick. Try it now: npx caveman-blocks scan. Works with Claude Code, Codex, Cursor and any AGENTS.md agent. A leaderboard of scripts agents kept retyping in one week: peek at a JSON file 373 times in 32 sessions, parse JSON from a pipe 225 times, each covered by the json-peek block" width="880"></a>
+<a href="https://github.com/caveman-ai/blocks"><img src="docs/assets/banner.png" alt="Caveman / Blocks. The word BLOCKS built from stone pixels, with the Caveman rock as the O and an orange block inside it. Why many script when few do trick. Say this to shell: npx caveman-blocks scan. Works with Claude Code, Codex, Cursor and any AGENTS.md agent. The cave wall, 11,475 scripts in 7 days on one machine, as tally marks: peek at a JSON file 373 times, parse JSON from a pipe 225 times, count bad rows in a JSON file 144 times, each covered by json-peek; replace text in a file 47 times, covered by replace-in-file" width="880"></a>
 
 # why many script when few do trick
 
