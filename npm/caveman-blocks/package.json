@@ -1,0 +1,18 @@
+{
+  "name": "caveman-blocks",
+  "version": "0.0.0",
+  "description": "Caveman Blocks: your agents write each script once, well, and reuse it. Verified single-file blocks in your repo's .blocks/.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/JuliusBrussee/caveman-blocks",
+  "repository": { "type": "git", "url": "git+https://github.com/JuliusBrussee/caveman-blocks.git" },
+  "bin": { "caveman-blocks": "bin/caveman-blocks.js" },
+  "files": ["bin/caveman-blocks.js"],
+  "engines": { "node": ">=18" },
+  "optionalDependencies": {
+    "@caveman-blocks/darwin-arm64": "0.0.0",
+    "@caveman-blocks/darwin-x64": "0.0.0",
+    "@caveman-blocks/linux-arm64": "0.0.0",
+    "@caveman-blocks/linux-x64": "0.0.0",
+    "@caveman-blocks/win32-x64": "0.0.0"
+  }
+}
