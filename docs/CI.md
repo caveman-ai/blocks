@@ -32,3 +32,14 @@ itself `network` or `external`.
 
 Pass with skips is a pass. The listing of skips is the signal that a block needs a grant or a tool on
 the runner.
+
+## This repository's own CI
+
+First-party blocks in `blocks/` ship without a `[stamp]` table, because `add` writes the stamp in the
+user's repo. `make blocks-verify` therefore runs `lint --first-party blocks` and
+`verify --check --all --first-party --fixtures-root blocks/fixtures --blocks-dir blocks`, where
+`--first-party` treats a block with no stamp as stamped with its current hash, so the example alone
+decides pass or fail, and writes nothing. Outside `--first-party` a missing stamp is stale, as in the
+table above. No `.blocks/config.toml` exists here, so `http-json` (`network`) is a listed skip. CI also
+runs `make e2e` and `make bench-hook`; the latter skips rule 1 when spawning `/usr/bin/true` alone
+takes over half its 5 ms budget, and skips entirely above 20 ms.

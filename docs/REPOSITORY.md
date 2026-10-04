@@ -36,9 +36,11 @@ caveman-blocks/
     promote/                 brief rendering, candidate ranking, retire
     runner/                  caveman-blocks run: effects gate, path confinement, exec, cap, spill
     stats/                   append and summarize events
+    export/                  SKILL.md rendering for export   (pure; golden test)
     repo/                    repo root, .blocks/, config.toml at HEAD, state dir, default branch, instruction files
   blocks/                    first-party blocks, one file each, plus fixtures/<name>/; README.md is the registry table
   testdata/
+    e2e/                     testscript scenarios run by make e2e (build tag e2e)
     scrub/                   golden scrub cases
     repo/                    a small fixture repository for end-to-end tests
     repo/                    a small fixture repository for end-to-end tests
@@ -67,18 +69,22 @@ caveman-blocks/
 
 | Command | Purpose |
 |---|---|
-| `init` | Create `.blocks/` and `config.toml`; run `sync` |
-| `hooks install\|uninstall\|status` | Per-machine hook entries for detected harnesses |
-| `add <name>` | Copy a first-party block into `.blocks/`, record in `blocks.lock`, `sync` |
+| `init` | Create `.blocks/` and `config.toml` in the current directory; run `sync` |
+| `hooks install\|uninstall\|status [--harness x]` | Per-machine hook entries for detected harnesses (`claude-code`, `codex`, `cursor`), or the named ones |
+| `add <name> [--force]` | Copy a first-party block into `.blocks/`, record in `blocks.lock`, `verify`, `sync` |
 | `run <name> [--param v]` | Execute a block: effects gate from committed config, path confinement, cap, spill |
 | `lint [path] [--first-party]` | Format and rule checks; exits non-zero with coded findings |
-| `verify [name\|--changed\|--all] [--check] [--policy-ref r]` | Run examples, write content-hash stamps, quarantine failures; `--check` writes nothing and fails; see CI.md |
+| `verify [name\|--changed\|--all] [--check] [--policy-ref r] [--fixtures-root d] [--first-party]` | Run examples, write content-hash stamps, quarantine failures; `--check` writes nothing and fails; `--first-party` is for this repo's unstamped registry; see CI.md |
 | `sync [--check]` | Regenerate `INDEX.md`, managed sections and exports; `--check` for CI |
 | `scan [--since 30d] [--harness x]` | Repeat table from local transcripts |
 | `promote [fp]` | List repeated shapes or print the promotion brief |
 | `retire <name>` | Remove a block and `sync` |
 | `diff [name]` / `update [name]` | Phase 2: compare and refresh first-party blocks against a newer registry |
-| `export` | Write `SKILL.md` wrappers |
+| `export` | Write `SKILL.md` wrappers into `.claude/skills/` and `.agents/skills/` |
 | `stats [--since 7d]` | Summarize counted events |
-| `hook --harness <x>` | Entry point the harness calls; `generic` speaks the protocol in INTEGRATION.md |
-| `doctor` | Check binary path in hook configs, Python availability, trust state |
+| `hook --harness <claude\|codex\|cursor\|generic> [--phase pre\|post]` | Entry point the harness calls; `generic` speaks the protocol in INTEGRATION.md; always exits 0 |
+| `doctor` | Report binary and hook copy versions, hook configs and trust notes, Python, parent `CLAUDE.md`, CI workflow, sync state, indexed blocks |
+| `version` | Print the version |
+
+Exit codes: 0 success; 1 failure (lint finding, failed or stale verify, stale sync, refused run); 2 usage
+error. `run` passes the block's exit code through. `hook` always exits 0.
