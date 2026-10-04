@@ -4,7 +4,7 @@
 
 # why many script when few do trick
 
-**Agent write same script every session. Agent throw script away. Agent write it again tomorrow, new typo. Blocks keep the script in your repo, check it, and hand it back.**
+**Agent write same script every session. Agent throw script away. Agent write it again tomorrow, new typo. Blocks keep the script in your repo, check it, and hand it back. AKA skills.sh for codemode**
 
 <a href="https://github.com/caveman-ai/blocks/stargazers"><img src="https://img.shields.io/github/stars/caveman-ai/blocks?style=flat-square&color=111&label=stars" alt="GitHub stars"></a>
 <a href="https://github.com/caveman-ai/blocks/releases"><img src="https://img.shields.io/github/v/release/caveman-ai/blocks?include_prereleases&style=flat-square&color=111&label=release" alt="Release"></a>
