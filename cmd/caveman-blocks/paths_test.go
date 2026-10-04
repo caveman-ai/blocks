@@ -121,6 +121,7 @@ func TestInitRefusesSymlinkedBlocks(t *testing.T) {
 	t.Chdir(root)
 	c := initCmd()
 	c.SetArgs(nil)
+	c.SilenceErrors = true
 	c.SetOut(new(strings.Builder))
 	if err := c.Execute(); err == nil {
 		t.Error("no error")
@@ -152,5 +153,53 @@ func TestOversizedFixturesNotIndexed(t *testing.T) {
 	}
 	if fd := lintFile(filepath.Join(root, ".blocks", "json-peek.py"), blockfile.LintOptions{}); !slices.ContainsFunc(fd, func(f blockfile.Finding) bool { return f.Code == "F013" }) {
 		t.Errorf("lint findings %+v lack F013", fd)
+	}
+}
+
+func TestNewerSemver(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want bool
+	}{
+		{"0.2.0", "0.1.9", true}, {"0.1.0", "0.1.0", false}, {"0.1.0", "0.2.0", false},
+		{"v1.0.0", "0.9.9", true}, {"1.0.0", "1.0.0-rc.1", true}, {"1.0.0-rc.1", "1.0.0", false},
+		{"1.0.0-rc.10", "1.0.0-rc.9", true}, {"1.0.0-rc.2", "1.0.0-rc.10", false},
+		{"1.0.0-rc.1", "1.0.0-beta", true}, {"1.0.0-rc.1.1", "1.0.0-rc.1", true}, {"1.0.0+b2", "1.0.0+b1", false},
+	} {
+		a, okA := semver(c.a)
+		b, okB := semver(c.b)
+		if !okA || !okB || newer(a, b) != c.want {
+			t.Errorf("newer(%s, %s) = %v, want %v", c.a, c.b, newer(a, b), c.want)
+		}
+	}
+	for _, v := range []string{"", "15e4335", "1.2", "1.2.x"} {
+		if _, ok := semver(v); ok {
+			t.Errorf("semver(%q) ok", v)
+		}
+	}
+}
+
+func TestRefreshBinaryOnlyUpgrades(t *testing.T) {
+	saved := version
+	t.Cleanup(func() { version = saved })
+	for _, c := range []struct {
+		mine, installed string
+		want            bool
+	}{
+		{"0.1.0", "0.2.0", false}, {"0.2.0", "0.2.0", false}, {"0.2.0", "0.1.0", true},
+		{"0.2.0", "not-a-version", true}, {"0.0.0-dev", "garbage", false}, {"15e4335", "0.1.0", false},
+	} {
+		t.Setenv("HOME", t.TempDir())
+		installed := filepath.Join(repo.BinaryHome(), "caveman-blocks")
+		if err := os.MkdirAll(filepath.Dir(installed), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(installed, []byte("#!/bin/sh\necho caveman-blocks "+c.installed+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		version = c.mine
+		if _, changed := refreshBinary(); changed != c.want {
+			t.Errorf("mine %s, installed %s: changed = %v", c.mine, c.installed, changed)
+		}
 	}
 }

@@ -167,14 +167,20 @@ func executable() (string, error) {
 	return real, nil
 }
 
-// refreshBinary updates the hook's installed copy when one exists and its version differs from this
-// binary's (docs/HOOK.md, failure policy). Dev builds and cache paths never replace it.
+// refreshBinary updates the hook's installed copy when one exists and this binary's version is
+// newer (docs/HOOK.md, failure policy). An installed copy whose version is not semver is replaced;
+// dev builds, non-semver builds and cache paths never replace anything.
 func refreshBinary() (string, bool) {
 	home := repo.BinaryHome()
-	if home == "" || version == "0.0.0-dev" {
+	mine, ok := semver(version)
+	if home == "" || !ok || strings.Contains(version, "dev") {
 		return "", false
 	}
-	if _, err := os.Stat(filepath.Join(home, "caveman-blocks")); err != nil {
+	installed := filepath.Join(home, "caveman-blocks")
+	if _, err := os.Stat(installed); err != nil {
+		return "", false
+	}
+	if theirs, ok := semver(repo.InstalledVersion(installed)); ok && !newer(mine, theirs) {
 		return "", false
 	}
 	exe, err := executable()
@@ -183,4 +189,58 @@ func refreshBinary() (string, bool) {
 	}
 	p, changed, err := repo.InstallBinary(exe, version)
 	return p, err == nil && changed
+}
+
+// semverParts is a parsed MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD], with an optional leading v.
+type semverParts struct {
+	num [3]int
+	pre string
+}
+
+func semver(v string) (semverParts, bool) {
+	var s semverParts
+	v, _, _ = strings.Cut(strings.TrimPrefix(v, "v"), "+") // build metadata does not order
+	core, pre, _ := strings.Cut(v, "-")
+	parts := strings.Split(core, ".")
+	if len(parts) != 3 {
+		return s, false
+	}
+	for i, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
+			return s, false
+		}
+		s.num[i] = n
+	}
+	s.pre = pre
+	return s, true
+}
+
+// newer reports a > b in semver precedence: numbers, then a release over its prereleases, then
+// prerelease identifiers left to right, numeric ones numerically.
+func newer(a, b semverParts) bool {
+	for i := range a.num {
+		if a.num[i] != b.num[i] {
+			return a.num[i] > b.num[i]
+		}
+	}
+	if a.pre == "" || b.pre == "" {
+		return a.pre == "" && b.pre != ""
+	}
+	x, y := strings.Split(a.pre, "."), strings.Split(b.pre, ".")
+	for i := 0; i < len(x) && i < len(y); i++ {
+		if x[i] == y[i] {
+			continue
+		}
+		m, errM := strconv.Atoi(x[i])
+		n, errN := strconv.Atoi(y[i])
+		switch {
+		case errM == nil && errN == nil:
+			return m > n
+		case errM == nil || errN == nil: // numeric identifiers sort first
+			return errN == nil
+		}
+		return x[i] > y[i]
+	}
+	return len(x) > len(y)
 }
