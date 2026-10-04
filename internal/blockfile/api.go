@@ -175,7 +175,12 @@ func compact(v any) string {
 		s = strconv.FormatFloat(f, 'g', -1, 64)
 	}
 	if s == "" || strings.ContainsAny(s, " \t\"'[]") {
-		return strconv.Quote(s)
+		s = strconv.Quote(s)
+	}
+	// Long defaults (pattern lists, long strings) would push the index line past its width; the
+	// agent gets the full value from --help.
+	if len([]rune(s)) > 16 {
+		return "…"
 	}
 	return s
 }
