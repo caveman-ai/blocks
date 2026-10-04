@@ -20,6 +20,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-      - run: VERSION=${GITHUB_REF_NAME#v} scripts/publish-npm.sh
+      - name: Publish npm packages (skipped until NPM_TOKEN is set)
+        if: env.NODE_AUTH_TOKEN != ''
+        run: VERSION=${GITHUB_REF_NAME#v} scripts/publish-npm.sh
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
