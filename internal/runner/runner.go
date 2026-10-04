@@ -4,7 +4,6 @@
 package runner
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -34,12 +33,6 @@ const (
 
 	// Timeout bounds one `run`; verify sets its own.
 	Timeout = 10 * time.Minute
-
-	outTTL       = 7 * 24 * time.Hour
-	cacheTTL     = time.Hour
-	candidateTTL = 14 * 24 * time.Hour // hook rule 9's window
-	candidateMax = 8 << 20             // newest bytes of a candidates file read when pruning
-	pruneEvery   = 24 * time.Hour
 )
 
 // Sentinel errors, matched with errors.Is.
@@ -113,7 +106,7 @@ func Run(root, stateDir string, b *blockfile.Block, unverified bool, allow []str
 		return Result{}, err
 	}
 	if stateDir != "" {
-		prune(stateDir, time.Now())
+		repo.Prune(stateDir, time.Now())
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
@@ -371,97 +364,4 @@ func spill(stateDir string, out []byte) (string, error) {
 		return "", err
 	}
 	return path, f.Close()
-}
-
-// prune removes out/ entries older than 7 days, cache/ entries older than 1 hour and sightings older
-// than 14 days, at most once
-// per day, tracked by the mtime of <stateDir>/.pruned. Best effort: errors are ignored.
-func prune(stateDir string, now time.Time) {
-	marker := filepath.Join(stateDir, ".pruned")
-	if fi, err := os.Lstat(marker); err == nil && now.Sub(fi.ModTime()) < pruneEvery {
-		return
-	}
-	pruneCandidates(filepath.Join(stateDir, "candidates"), now)
-	for sub, ttl := range map[string]time.Duration{"out": outTTL, "cache": cacheTTL} {
-		dir := filepath.Join(stateDir, sub)
-		entries, _ := os.ReadDir(dir)
-		for _, e := range entries {
-			if fi, err := e.Info(); err == nil && now.Sub(fi.ModTime()) > ttl {
-				os.RemoveAll(filepath.Join(dir, e.Name()))
-			}
-		}
-	}
-	if f, err := os.OpenFile(marker, os.O_WRONLY|os.O_CREATE|repo.NoFollow, 0o600); err == nil {
-		f.Close()
-		os.Chtimes(marker, now, now)
-	}
-}
-
-// pruneCandidates drops sightings older than candidateTTL from <stateDir>/candidates/*.jsonl.
-// Sightings are appended in time order, so only the newest candidateMax bytes of a file are read
-// and a bigger file is cut to them. A file is rewritten (temp + rename) only when a line goes.
-//
-// ponytail: a sighting the hook appends during the rewrite is lost; the hook would need a lock.
-func pruneCandidates(dir string, now time.Time) {
-	paths, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
-	for _, p := range paths {
-		pruneSightings(p, now.Add(-candidateTTL))
-	}
-}
-
-func pruneSightings(p string, cutoff time.Time) error {
-	f, err := os.OpenFile(p, os.O_RDONLY|repo.NoFollow, 0)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil || !fi.Mode().IsRegular() {
-		return err
-	}
-	cut := fi.Size() > candidateMax
-	if cut {
-		if _, err := f.Seek(fi.Size()-candidateMax, io.SeekStart); err != nil {
-			return err
-		}
-	}
-	var keep bytes.Buffer
-	r := bufio.NewReader(f)
-	dropped, partial := cut, cut // after a seek the first line is partial
-	for {
-		line, err := r.ReadBytes('\n')
-		if len(line) > 0 && !partial {
-			var sg struct {
-				TS time.Time `json:"ts"`
-			}
-			if json.Unmarshal(line, &sg) == nil && !sg.TS.Before(cutoff) {
-				keep.Write(line)
-			} else {
-				dropped = true
-			}
-		}
-		partial = false
-		if err != nil {
-			break
-		}
-	}
-	if !dropped {
-		return nil
-	}
-	if keep.Len() == 0 {
-		return os.Remove(p)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(p), ".prune-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name()) // no-op after a successful rename
-	if _, err := tmp.Write(keep.Bytes()); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil { // CreateTemp makes it 0600
-		return err
-	}
-	return os.Rename(tmp.Name(), p)
 }

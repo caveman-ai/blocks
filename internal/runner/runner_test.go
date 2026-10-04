@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/JuliusBrussee/caveman-blocks/internal/blockfile"
 )
@@ -208,60 +207,5 @@ func TestRequires(t *testing.T) {
 		if err := CheckRequires(b); err != nil {
 			t.Errorf("sh: %v", err)
 		}
-	}
-}
-
-func TestPrune(t *testing.T) {
-	state := t.TempDir()
-	now := time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
-	files := map[string]time.Duration{
-		"out/old.log":   8 * 24 * time.Hour,
-		"out/new.log":   6 * 24 * time.Hour,
-		"cache/old":     2 * time.Hour,
-		"cache/new":     30 * time.Minute,
-		"cache/olddir/": 2 * time.Hour,
-	}
-	for name, age := range files {
-		p := filepath.Join(state, name)
-		if strings.HasSuffix(name, "/") {
-			if err := os.MkdirAll(p, 0o700); err != nil {
-				t.Fatal(err)
-			}
-		} else {
-			if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(p, nil, 0o600); err != nil {
-				t.Fatal(err)
-			}
-		}
-		if err := os.Chtimes(p, now.Add(-age), now.Add(-age)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	exists := func(name string) bool { _, err := os.Stat(filepath.Join(state, name)); return err == nil }
-
-	prune(state, now)
-	for name, want := range map[string]bool{"out/old.log": false, "out/new.log": true, "cache/old": false, "cache/new": true, "cache/olddir": false} {
-		if exists(name) != want {
-			t.Errorf("%s exists = %v, want %v", name, !want, want)
-		}
-	}
-
-	// Within a day of the last prune nothing is removed, even when stale.
-	stale := filepath.Join(state, "cache", "stale")
-	if err := os.WriteFile(stale, nil, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chtimes(stale, now.Add(-5*time.Hour), now.Add(-5*time.Hour)); err != nil {
-		t.Fatal(err)
-	}
-	prune(state, now.Add(23*time.Hour))
-	if !exists("cache/stale") {
-		t.Error("pruned twice within a day")
-	}
-	prune(state, now.Add(25*time.Hour))
-	if exists("cache/stale") {
-		t.Error("not pruned after a day")
 	}
 }

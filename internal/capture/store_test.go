@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -70,6 +71,41 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 	if none, err := (Store{Dir: filepath.Join(dir, "missing")}).Shapes(time.Hour); err != nil || none != nil {
 		t.Errorf("missing dir = %v, %v", none, err)
+	}
+}
+
+// TestShapesBounds: a file last written before the window is not read, and of a big file only the
+// newest shapeMax bytes count, starting at a whole line.
+func TestShapesBounds(t *testing.T) {
+	dir := t.TempDir()
+	st := Store{Dir: dir}
+	now := time.Now().UTC()
+	line := func(session string) string {
+		return `{"ts":"` + now.Add(-time.Minute).Format(time.RFC3339Nano) + `","session":"` + session + `"}` + "\n"
+	}
+	stale := filepath.Join(dir, "aaaaaaaaaaaa.jsonl")
+	if err := os.WriteFile(stale, []byte(line("s1")+line("s2")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	old := now.Add(-15 * 24 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+	// "old" sessions fill the first 2 MiB; only the last MiB, all "new", is read.
+	oldLine, newLine := line("old"), line("new")
+	big := strings.Repeat(oldLine, (2<<20)/len(oldLine)) + strings.Repeat(newLine, (shapeMax/len(newLine))-10)
+	if err := os.WriteFile(filepath.Join(dir, "bbbbbbbbbbbb.jsonl"), []byte(big), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	shapes, err := st.Shapes(14 * 24 * time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(shapes) != 1 || shapes[0].FP != "bbbbbbbbbbbb" {
+		t.Fatalf("shapes = %+v, want only the fresh big file", shapes)
+	}
+	if s := shapes[0]; s.Sessions != 2 || s.Count < shapeMax/len(newLine)-10 || s.Count > shapeMax/len(newLine) {
+		t.Errorf("big shape: count %d sessions %d", s.Count, s.Sessions)
 	}
 }
 

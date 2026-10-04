@@ -28,11 +28,9 @@ func DefaultDeps(stateDir string) Deps {
 	}
 }
 
-// FileCache is a Cache with one small file per key; an entry's age is its mtime.
-//
-// ponytail: rule 8's once-per-session add flags live in Dir too, so they expire with the 1 h TTL; a
-// session longer than an hour can see the add hint again. Rule 9's per-day flags live in FlagDir,
-// which the runner does not prune: one file per shape, holding the day it was last hinted.
+// FileCache is a Cache with one small file per key; an entry's age is its mtime. Flags live in
+// FlagDir (hinted/), pruned after 2 days rather than the cache's hour: rule 9's one file per shape
+// holding the day it was last hinted, and rule 8's one empty file per (session, block).
 type FileCache struct {
 	Dir     string
 	FlagDir string
@@ -119,15 +117,21 @@ func (c *FileCache) SeenRecently(key string, within time.Duration) bool {
 	return ok && a <= within
 }
 
-func (c *FileCache) flag(fp string) string {
-	h := sha256.Sum256([]byte("promote:" + fp))
+func (c *FileCache) flag(key string) string {
+	h := sha256.Sum256([]byte(key))
 	return filepath.Join(c.FlagDir, hex.EncodeToString(h[:16]))
 }
 
-// PromoteHinted reports whether rule 9 already hinted shape fp on day. A symlink is never read.
+// isFlag reports whether p is a regular file; a symlink is never read.
+func isFlag(p string) bool {
+	fi, err := os.Lstat(p)
+	return err == nil && fi.Mode().IsRegular()
+}
+
+// PromoteHinted reports whether rule 9 already hinted shape fp on day.
 func (c *FileCache) PromoteHinted(fp, day string) bool {
-	p := c.flag(fp)
-	if fi, err := os.Lstat(p); err != nil || !fi.Mode().IsRegular() {
+	p := c.flag("promote:" + fp)
+	if !isFlag(p) {
 		return false
 	}
 	b, err := os.ReadFile(p)
@@ -135,15 +139,14 @@ func (c *FileCache) PromoteHinted(fp, day string) bool {
 }
 
 // MarkPromoteHinted records rule 9's hint for shape fp on day.
-func (c *FileCache) MarkPromoteHinted(fp, day string) { replace(c.flag(fp), []byte(day)) }
+func (c *FileCache) MarkPromoteHinted(fp, day string) { replace(c.flag("promote:"+fp), []byte(day)) }
 
 // AddHinted reports whether rule 8 already suggested adding block in session.
 func (c *FileCache) AddHinted(session, block string) bool {
-	_, ok := c.age("add:" + session + "\x00" + block)
-	return ok
+	return isFlag(c.flag("add:" + session + "\x00" + block))
 }
 
 // MarkAddHinted records rule 8's add suggestion for block in session.
 func (c *FileCache) MarkAddHinted(session, block string) {
-	c.write("add:"+session+"\x00"+block, []byte("{}"))
+	replace(c.flag("add:"+session+"\x00"+block), nil)
 }

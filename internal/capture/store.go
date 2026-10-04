@@ -38,8 +38,13 @@ func (st Store) Append(fp string, sg Sighting) error {
 	return err
 }
 
+// shapeMax is how many of the newest bytes of a candidates file Shapes reads. Sightings are
+// appended in time order, so a bigger file loses only its oldest ones.
+const shapeMax = 1 << 20
+
 // Shapes lists shapes with sightings since the window, most sightings first, then by fp. A window of
-// zero or less keeps every sighting. Corrupt lines are skipped; a missing Dir is no shapes.
+// zero or less keeps every sighting. A file last written before the window is not opened, and only
+// the newest shapeMax bytes of a file are read. Corrupt lines are skipped; a missing Dir is no shapes.
 func (st Store) Shapes(since time.Duration) ([]Shape, error) {
 	ents, err := os.ReadDir(st.Dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -56,6 +61,9 @@ func (st Store) Shapes(since time.Duration) ([]Shape, error) {
 	for _, e := range ents {
 		fp, ok := strings.CutSuffix(e.Name(), ".jsonl")
 		if !ok || !e.Type().IsRegular() || !validFP(fp) {
+			continue
+		}
+		if fi, err := e.Info(); err != nil || fi.ModTime().Before(cutoff) {
 			continue
 		}
 		sh, err := readShape(filepath.Join(st.Dir, e.Name()), fp, cutoff)
@@ -82,11 +90,20 @@ func readShape(path, fp string, cutoff time.Time) (Shape, error) {
 		return sh, err
 	}
 	defer f.Close()
+	partial := false // after a seek into the file the first line is cut
+	if fi, err := f.Stat(); err == nil && fi.Size() > shapeMax {
+		if _, err := f.Seek(fi.Size()-shapeMax, io.SeekStart); err != nil {
+			return sh, err
+		}
+		partial = true
+	}
 	sessions := map[string]bool{}
 	r := bufio.NewReader(f)
 	for {
 		line, err := r.ReadBytes('\n')
-		if len(line) > 0 {
+		if len(line) > 0 && partial {
+			partial = false
+		} else if len(line) > 0 {
 			var sg Sighting
 			if json.Unmarshal(line, &sg) == nil && !sg.TS.Before(cutoff) {
 				sh.Count++

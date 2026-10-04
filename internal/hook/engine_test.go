@@ -277,9 +277,16 @@ func TestFileCache(t *testing.T) {
 	if _, ok := c.Get("k"); ok {
 		t.Fatal("entry outlived the TTL")
 	}
-	// The promote flag outlives the cache TTL: it is per day, not per hour.
+	// Both flags outlive the cache TTL: they live in hinted/, which is pruned after 2 days.
 	if !c.PromoteHinted("aaa", "2026-10-03") {
 		t.Fatal("promote flag expired with the cache TTL")
+	}
+	if !c.AddHinted("s", "json-peek") {
+		t.Fatal("add flag expired with the cache TTL")
+	}
+	os.RemoveAll(dir) // the hourly cache prune never touches the flags
+	if !c.AddHinted("s", "json-peek") {
+		t.Fatal("add flag lived in the cache dir")
 	}
 	c.MarkPromoteHinted("aaa", "2026-10-04")
 	if c.PromoteHinted("aaa", "2026-10-03") || !c.PromoteHinted("aaa", "2026-10-04") {
