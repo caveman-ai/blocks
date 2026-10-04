@@ -1,0 +1,30 @@
+BLOCKS. Scripts in this repo are reusable blocks in .blocks/. Rules:
+1. Check the block index below first. If a block fits, run it. If one almost fits, add a param to it.
+2. A script you would run twice, or over ~10 lines, becomes a block, not a heredoc or a /tmp file.
+3. Inputs are params. No hardcoded paths, ids, ports or dates.
+4. Print one small JSON object: the answer, not the data. Filter, count and truncate in code.
+5. Exit 0 on success, non-zero with {"error": ...} on failure.
+6. Safe to re-run: idempotent, no prompts, cleans up after itself.
+7. Header first: name, summary, params, effects, example. caveman-blocks lint checks it.
+8. Compose: call existing blocks with caveman-blocks run instead of copying their code.
+
+a-block-name-longer-than-fourteen --pattern <str> --path <path> [--ignore-case] [--limit 20] Shape of a JSON…
+block-00      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-01                                        Counts lines.
+block-02      --path <path> [--depth 2]         A summary that is long enough to run past the one hundred…
+block-04      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-05      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-06      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-07      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-08      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-09      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-10      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-11      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-12      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-13      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-14      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-15      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-16      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-17      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-18      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
+block-19      --path <path> [--depth 2]         Shape of a JSON or JSONL file: keys, row count, one sample.
