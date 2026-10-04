@@ -23,23 +23,19 @@ type Timeout struct {
 	Unit  string `toml:"unit"`
 }
 
-// Profile is one harness table of profiles.toml (docs/INTEGRATION.md, layer 3).
+// Profile is one harness table of profiles.toml (docs/INTEGRATION.md, layer 3). install reads the
+// dialect, events and timeout from it.
 type Profile struct {
-	Name             string    `toml:"-"`
-	Phase            int       `toml:"phase"`
-	Dialect          string    `toml:"dialect"`
-	Detect           []string  `toml:"detect"`
-	Config           string    `toml:"config"`
-	ConfigFormat     string    `toml:"config_format"`
-	PreEvent         HookEvent `toml:"pre_event"`
-	PostEvent        HookEvent `toml:"post_event"` // zero when the pre-run hint is enough
-	Timeout          Timeout   `toml:"timeout"`
-	CommandField     string    `toml:"command_field"`
-	Capabilities     []string  `toml:"capabilities"`
-	InstructionFiles []string  `toml:"instruction_files"`
-	SkillsDir        string    `toml:"skills_dir"`
-	Transcripts      string    `toml:"transcripts"`
-	TrustNote        string    `toml:"trust_note"`
+	Name         string    `toml:"-"`
+	Phase        int       `toml:"phase"`
+	Dialect      string    `toml:"dialect"` // the --harness value written into the hook command
+	Detect       []string  `toml:"detect"`
+	Config       string    `toml:"config"`
+	ConfigFormat string    `toml:"config_format"`
+	PreEvent     HookEvent `toml:"pre_event"`
+	PostEvent    HookEvent `toml:"post_event"` // zero when the pre-run hint is enough
+	Timeout      Timeout   `toml:"timeout"`
+	TrustNote    string    `toml:"trust_note"`
 }
 
 // Profiles returns the embedded harness profiles sorted by phase, then name.

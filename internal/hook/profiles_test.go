@@ -15,12 +15,9 @@ func TestProfiles(t *testing.T) {
 	var names []string
 	for _, p := range ps {
 		names = append(names, p.Name)
-		if p.Dialect == "" || p.Config == "" || p.ConfigFormat == "" || p.PreEvent.Name == "" ||
-			p.Timeout.Value == 0 || p.CommandField == "" || len(p.Capabilities) == 0 || len(p.InstructionFiles) == 0 {
+		if p.Dialect == "" || p.Config == "" || p.ConfigFormat == "" || p.PreEvent.Name == "" || p.Timeout.Value == 0 ||
+			(p.Timeout.Unit != "s" && p.Timeout.Unit != "ms") {
 			t.Errorf("%s: incomplete profile %+v", p.Name, p)
-		}
-		if strings.Contains(strings.Join(p.Capabilities, ","), "post-hint") && p.PostEvent.Name == "" {
-			t.Errorf("%s: post-hint without a post event", p.Name)
 		}
 		if p.Phase == 1 {
 			if _, err := os.Stat(filepath.Join("dialect", p.Dialect)); err != nil {
