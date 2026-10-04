@@ -1,4 +1,4 @@
-.PHONY: build test lint e2e bench-hook blocks-test blocks-verify check-instructions
+.PHONY: build test lint e2e bench-hook blocks-test blocks-lint blocks-verify check-instructions
 
 build:
 	go build -trimpath -ldflags="-s -w -X main.version=$$(git describe --tags --always)" -o bin/caveman-blocks ./cmd/caveman-blocks
@@ -20,6 +20,12 @@ bench-hook: build
 
 blocks-test:
 	python3 -m unittest blocks/tests/test_blocks.py
+
+# Contributor check, not run in CI: ruff with defaults over the first-party blocks (CONTRIBUTING.md).
+blocks-lint:
+	@if command -v uvx >/dev/null 2>&1; then uvx ruff check blocks/; \
+	elif command -v ruff >/dev/null 2>&1; then ruff check blocks/; \
+	else echo "blocks-lint: skipped, neither uvx nor ruff is installed"; fi
 
 # First-party blocks carry no stamp; --first-party passes each one whose example passes (docs/CI.md).
 blocks-verify:
