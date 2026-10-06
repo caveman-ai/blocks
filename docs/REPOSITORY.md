@@ -69,7 +69,7 @@ caveman-blocks/
 | Command | Purpose |
 |---|---|
 | `init` | Create `.blocks/` and `config.toml` in the current directory; run `sync` |
-| `hooks install\|uninstall\|status [--harness x]` | Per-machine hook entries for detected harnesses (`claude-code`, `codex`, `cursor`, `opencode`), or the named ones |
+| `hooks install\|uninstall\|status [--harness x]` | Per-machine hook entries for detected harnesses (`claude-code`, `codex`, `cursor`, `opencode`), or the named ones. `status --json` prints one object: `version` and per harness `name`, `installed`, `binary`, `binary_present`, `config` |
 | `add <name> [--force]` | Copy a first-party block into `.blocks/`, record in `blocks.lock`, `verify`, `sync` |
 | `run <name> [--param v]` | Execute a block: effects gate from committed config, path confinement, cap, spill |
 | `lint [path] [--first-party]` | Format and rule checks; exits non-zero with coded findings |
@@ -83,7 +83,7 @@ caveman-blocks/
 | `stats [--since 7d]` | Summarize counted events |
 | `hook --harness <claude\|codex\|cursor\|generic> [--phase pre\|post]` | Entry point the harness calls; `generic` speaks the protocol in INTEGRATION.md; always exits 0 |
 | `doctor` | Report binary and hook copy versions, hook configs and trust notes, Python, parent `CLAUDE.md`, CI workflow, sync state, indexed blocks |
-| `version` | Print the version |
+| `version [--json]` | Print the version; `--json` adds `capabilities` (`hooks_status_json`) |
 
 Exit codes: 0 success; 1 failure (lint finding, failed or stale verify, stale sync, refused run); 2 usage
 error. `run` passes the block's exit code through. `hook` always exits 0.

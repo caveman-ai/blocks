@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -89,12 +90,29 @@ func newRoot() *cobra.Command {
 	root.AddCommand(
 		initCmd(), hooksCmd(), addCmd(), runCmd(), lintCmd(), verifyCmd(), syncCmd(), scanCmd(),
 		promoteCmd(), retireCmd(), exportCmd(), statsCmd(), hookCmd(), doctorCmd(),
-		&cobra.Command{
-			Use:   "version",
-			Short: "Print the version.",
-			Args:  args(cobra.NoArgs),
-			Run:   func(c *cobra.Command, _ []string) { fmt.Fprintln(c.OutOrStdout(), "caveman-blocks", version) },
-		},
+		versionCmd(),
 	)
 	return root
+}
+
+// capabilities names what this build supports, for callers that probe `version --json`
+// (the caveman CLI reads it before it relies on `hooks status --json`).
+var capabilities = []string{"hooks_status_json"}
+
+func versionCmd() *cobra.Command {
+	var asJSON bool
+	c := &cobra.Command{
+		Use:   "version [--json]",
+		Short: "Print the version.",
+		Args:  args(cobra.NoArgs),
+		RunE: func(c *cobra.Command, _ []string) error {
+			if asJSON {
+				return json.NewEncoder(c.OutOrStdout()).Encode(map[string]any{"version": version, "capabilities": capabilities})
+			}
+			fmt.Fprintln(c.OutOrStdout(), "caveman-blocks", version)
+			return nil
+		},
+	}
+	c.Flags().BoolVar(&asJSON, "json", false, "print {version, capabilities} as JSON")
+	return c
 }

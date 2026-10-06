@@ -16,6 +16,8 @@ grep '/home/.local/share/caveman-blocks/bin/caveman-blocks hook --harness claude
 
 exec caveman-blocks hooks status
 stdout '^claude-code: installed, runs .*/home/.local/share/caveman-blocks/bin/caveman-blocks$'
+exec caveman-blocks hooks status --json
+stdout '"name":"claude-code","installed":true,"binary":".*/home/.local/share/caveman-blocks/bin/caveman-blocks","binary_present":true,"config":"~/.claude/settings.json"'
 
 exec caveman-blocks hooks install
 stdout '\(unchanged\)$'

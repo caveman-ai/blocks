@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -83,14 +84,34 @@ func hooksCmd() *cobra.Command {
 			}
 			return nil
 		},
-	}, &cobra.Command{
-		Use:   "status [--harness x]...",
+	}, statusCmd(&names))
+	return c
+}
+
+func statusCmd(names *[]string) *cobra.Command {
+	var asJSON bool
+	c := &cobra.Command{
+		Use:   "status [--harness x]... [--json]",
 		Short: "Show which harnesses have the hook and which binary it runs.",
 		Args:  args(cobra.NoArgs),
 		RunE: func(c *cobra.Command, _ []string) error {
-			profiles, err := harnesses(names)
+			profiles, err := harnesses(*names)
 			if err != nil {
 				return err
+			}
+			if asJSON {
+				out := struct {
+					Version   string          `json:"version"`
+					Harnesses []harnessStatus `json:"harnesses"`
+				}{version, []harnessStatus{}}
+				for _, p := range profiles {
+					s, err := harnessState(p)
+					if err != nil {
+						s.Error = err.Error()
+					}
+					out.Harnesses = append(out.Harnesses, s)
+				}
+				return json.NewEncoder(c.OutOrStdout()).Encode(out)
 			}
 			if len(profiles) == 0 {
 				fmt.Fprintln(c.OutOrStdout(), "No harness detected (~/.claude, ~/.codex, ~/.cursor, ~/.config/opencode).")
@@ -100,37 +121,57 @@ func hooksCmd() *cobra.Command {
 			}
 			return nil
 		},
-	})
+	}
+	c.Flags().BoolVar(&asJSON, "json", false, "print one JSON object instead of text")
 	return c
+}
+
+// harnessStatus is one harness's hook install state, as hooks status --json prints it.
+type harnessStatus struct {
+	Name          string `json:"name"`
+	Installed     bool   `json:"installed"`
+	Binary        string `json:"binary"`
+	BinaryPresent bool   `json:"binary_present"`
+	Config        string `json:"config"`
+	Error         string `json:"error,omitempty"`
+}
+
+// harnessState reads one harness's hook config: whether our entry is there and the binary it runs.
+func harnessState(p hook.Profile) (harnessStatus, error) {
+	s := harnessStatus{Name: p.Name, Config: p.Config}
+	f, err := install.For(p.ConfigFormat)
+	if err != nil {
+		return s, err
+	}
+	s.Installed, s.Binary, err = f.Status(expandHome(p.Config))
+	if err != nil {
+		return s, fmt.Errorf("cannot read %s: %s", p.Config, oneLine(err.Error()))
+	}
+	if s.Installed {
+		_, err := os.Stat(s.Binary)
+		s.BinaryPresent = err == nil
+	}
+	return s, nil
 }
 
 // hookStatus prints one harness's install state, the binary it runs and its trust note.
 // It returns false when something needs attention.
 func hookStatus(out io.Writer, p hook.Profile) bool {
-	f, err := install.For(p.ConfigFormat)
-	if err != nil {
-		fmt.Fprintf(out, "%s: %v\n", p.Name, err)
-		return false
-	}
-	installed, bin, err := f.Status(expandHome(p.Config))
+	s, err := harnessState(p)
 	switch {
 	case err != nil:
-		fmt.Fprintf(out, "%s: cannot read %s: %s\n", p.Name, p.Config, oneLine(err.Error()))
+		fmt.Fprintf(out, "%s: %v\n", p.Name, err)
 		return false
-	case !installed:
+	case !s.Installed:
 		fmt.Fprintf(out, "%s: not installed (run caveman-blocks hooks install)\n", p.Name)
 		return false
 	}
-	ok := true
-	state := "installed"
-	if _, err := os.Stat(bin); err != nil {
-		state, ok = "installed, but the binary is missing", false
-	}
-	fmt.Fprintf(out, "%s: %s, runs %s\n", p.Name, state, bin)
+	state := either(s.BinaryPresent, "installed", "installed, but the binary is missing")
+	fmt.Fprintf(out, "%s: %s, runs %s\n", p.Name, state, s.Binary)
 	if p.TrustNote != "" {
 		fmt.Fprintf(out, "  %s\n", p.TrustNote)
 	}
-	return ok
+	return s.BinaryPresent
 }
 
 // harnesses returns the phase-1 profiles named, or every detected one when none is named.

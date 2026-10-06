@@ -9,6 +9,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        # verify --policy-ref origin/main needs main; a PR checkout fetches only the PR ref.
+        with: { fetch-depth: 0 }
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
       - run: make check-instructions
