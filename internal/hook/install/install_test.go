@@ -177,7 +177,7 @@ func TestInstallFile(t *testing.T) {
 	c, err := f.Install(path, bin)
 	mustChange(t, true, c, err)
 	b, _ := os.ReadFile(path)
-	for _, want := range []string{"// /opt/cb/caveman-blocks hook --harness generic\n", `const INSTALLED = "/opt/cb/caveman-blocks";`, `"tool.execute.after"`} {
+	for _, want := range []string{"// /opt/cb/caveman-blocks hook --harness generic\n", `const INSTALLED = "/opt/cb/caveman-blocks";`, `export default {`, `id: "caveman-blocks"`, `async setup(ctx)`, `ctx.tool.hook("execute.before"`, `ctx.tool.hook("execute.after"`, `server: CavemanBlocks`} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("missing %q in:\n%s", want, b)
 		}
@@ -185,6 +185,14 @@ func TestInstallFile(t *testing.T) {
 	if strings.Contains(string(b), `const INSTALLED = "";`) {
 		t.Error("placeholder left in place")
 	}
+	// Reinstall upgrades an existing V1-only file rather than leaving the old adapter in place.
+	old := []byte("// /opt/cb/caveman-blocks hook --harness generic\nexport const CavemanBlocks = async () => ({})\n")
+	if err := os.WriteFile(path, old, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err = f.Install(path, bin)
+	mustChange(t, true, c, err)
+	expect(t, path, b)
 	c, err = f.Install(path, bin)
 	mustChange(t, false, c, err)
 	if ok, got, err := f.Status(path); !ok || got != bin || err != nil {

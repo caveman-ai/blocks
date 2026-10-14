@@ -1,4 +1,4 @@
-// Caveman Blocks for OpenCode. Forwards each bash call to `caveman-blocks hook --harness generic`
+// Caveman Blocks for OpenCode. Forwards each shell call to `caveman-blocks hook --harness generic`
 // (docs/INTEGRATION.md, layer 1) and appends the one-line hint to the tool output, since OpenCode's
 // before-hook has no context field. Never blocks, never rewrites, fails open: without the binary, or
 // on any error, OpenCode runs exactly as it would without this file.
@@ -26,25 +26,72 @@ function hook(req) {
       encoding: "utf8",
       timeout: 5000,
     });
-    return r.status === 0 && r.stdout ? JSON.parse(r.stdout).hint || "" : "";
+    const hint = r.status === 0 && r.stdout ? JSON.parse(r.stdout).hint : "";
+    return typeof hint === "string" ? hint : "";
   } catch {
     return "";
   }
 }
 
+function pendingHints(directory) {
+  const hints = new Map(); // (session, call) -> hint, consumed even when the tool fails
+  const key = (session, call) => JSON.stringify([session, call]);
+  return {
+    before(session, call, args) {
+      const id = key(session, call);
+      hints.delete(id);
+      const hint = hook({ phase: "pre", session, call_id: call, cwd: args?.workdir || directory, command: String(args?.command ?? "") });
+      if (hint) hints.set(id, hint);
+    },
+    take(session, call) {
+      const id = key(session, call);
+      const hint = hints.get(id);
+      hints.delete(id);
+      return hint;
+    },
+    clear() { hints.clear(); },
+  };
+}
+
+// V1's hook function is retained for hosts supporting the server() entrypoint (1.18.29+).
 export const CavemanBlocks = async ({ directory }) => {
-  const hints = new Map(); // callID -> hint from the pre phase, delivered after the call
+  const hints = pendingHints(directory);
   return {
     "tool.execute.before": async (input, output) => {
       if (input.tool !== "bash") return;
-      const command = String(output.args?.command ?? "");
-      const hint = hook({ phase: "pre", session: input.sessionID, call_id: input.callID, cwd: output.args?.workdir || directory, command });
-      if (hint) hints.set(input.callID, hint);
+      hints.before(input.sessionID, input.callID, output.args);
     },
     "tool.execute.after": async (input, output) => {
-      const hint = hints.get(input.callID);
-      hints.delete(input.callID);
+      if (input.tool !== "bash") return;
+      const hint = hints.take(input.sessionID, input.callID);
       if (hint) output.output = `${output.output}\n\n${hint}`;
     },
+    dispose: () => hints.clear(),
   };
+};
+
+// A plain definition keeps this standalone, installer-embedded file dependency-free.
+export default {
+  id: "caveman-blocks",
+  server: CavemanBlocks,
+  async setup(ctx) {
+    const hints = pendingHints(ctx.location.directory);
+    await ctx.tool.hook("execute.before", (event) => {
+      if (event.tool !== "shell") return;
+      hints.before(event.sessionID, event.id, event.input);
+    });
+    await ctx.tool.hook("execute.after", (event) => {
+      if (event.tool !== "shell") return;
+      const hint = hints.take(event.sessionID, event.id);
+      if (!hint || event.status !== "completed") return;
+      const content = event.result.content;
+      event.result = {
+        ...event.result,
+        content: typeof content === "string"
+          ? `${content}\n\n${hint}`
+          : [...(content ?? []), { type: "text", text: hint }],
+      };
+    });
+    return () => hints.clear();
+  },
 };
