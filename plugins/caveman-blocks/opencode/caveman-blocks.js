@@ -34,7 +34,7 @@ function hook(req) {
 }
 
 function pendingHints(directory) {
-  const hints = new Map(); // (session, call) -> hint, consumed even when the tool fails
+  const hints = new Map();
   const key = (session, call) => JSON.stringify([session, call]);
   return {
     before(session, call, args) {
@@ -53,7 +53,6 @@ function pendingHints(directory) {
   };
 }
 
-// V1's hook function is retained for hosts supporting the server() entrypoint (1.18.29+).
 export const CavemanBlocks = async ({ directory }) => {
   const hints = pendingHints(directory);
   return {
@@ -70,7 +69,6 @@ export const CavemanBlocks = async ({ directory }) => {
   };
 };
 
-// A plain definition keeps this standalone, installer-embedded file dependency-free.
 export default {
   id: "caveman-blocks",
   server: CavemanBlocks,

@@ -185,7 +185,6 @@ func TestInstallFile(t *testing.T) {
 	if strings.Contains(string(b), `const INSTALLED = "";`) {
 		t.Error("placeholder left in place")
 	}
-	// Reinstall upgrades an existing V1-only file rather than leaving the old adapter in place.
 	old := []byte("// /opt/cb/caveman-blocks hook --harness generic\nexport const CavemanBlocks = async () => ({})\n")
 	if err := os.WriteFile(path, old, 0o600); err != nil {
 		t.Fatal(err)

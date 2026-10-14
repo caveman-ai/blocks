@@ -1,7 +1,7 @@
-# The installed OpenCode plugin supports the V2 definition and hooks, and the V1 server entrypoint.
-# Exercise the real binary, result shapes, session isolation, cleanup and fail-open behavior.
+# The installed OpenCode plugin: V2 shell hooks and V1 bash hooks.
 [!exec:python3] skip 'python3 is not on PATH'
-[!exec:node] skip 'node is not on PATH'
+[!exec:bun] skip 'bun is not on PATH'
+[!exec:sh] skip 'sh is not on PATH'
 env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
 
 exec git init -q repo
@@ -13,20 +13,18 @@ stdout '^opencode: installed in ~/.config/opencode/plugins/caveman-blocks.js$'
 exists $WORK/home/.config/opencode/plugins/caveman-blocks.js
 grep '^// .*/caveman-blocks hook --harness generic$' $WORK/home/.config/opencode/plugins/caveman-blocks.js
 
-exec node ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js
+exec bun ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js
 stdout '^V2 and V1 hooks: ok$'
 
-# A missing installed binary and an empty PATH cannot affect the shell call.
 rm $WORK/home/.local/share/caveman-blocks/bin/caveman-blocks
-exec node ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js missing
+exec sh -c 'PATH=$WORK/nowhere CAVEMAN_BLOCKS_BIN= "$(command -v bun)" "$@"' -- ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js missing
 stdout '^missing binary: ok$'
 
-# Process errors, bad JSON and non-string hints also leave the result untouched.
-exec node ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js malformed
+exec sh -c 'PATH=$WORK/nowhere CAVEMAN_BLOCKS_BIN= "$(command -v bun)" "$@"' -- ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js malformed
 stdout '^malformed binary: ok$'
-exec node ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js nonzero
+exec sh -c 'PATH=$WORK/nowhere CAVEMAN_BLOCKS_BIN= "$(command -v bun)" "$@"' -- ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js nonzero
 stdout '^nonzero binary: ok$'
-exec node ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js invalid-hint
+exec sh -c 'PATH=$WORK/nowhere CAVEMAN_BLOCKS_BIN= "$(command -v bun)" "$@"' -- ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js invalid-hint
 stdout '^invalid-hint binary: ok$'
 
 exec caveman-blocks hooks uninstall --harness opencode
@@ -39,7 +37,6 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-// V2's tool hooks use id/input and status/result, not V1's callID/args/output.
 const mod = await import(pathToFileURL(process.argv[2]));
 assert.equal(mod.default.id, "caveman-blocks");
 assert.equal(typeof mod.default.setup, "function");
@@ -61,7 +58,7 @@ const before = async (sessionID, id, tool = "shell", input = { command }) => {
   const event = { sessionID, id, tool, input };
   const original = structuredClone(event);
   await callbacks["execute.before"](event);
-  assert.deepEqual(event, original); // never rewrite commands
+  assert.deepEqual(event, original);
   return event;
 };
 const after = async (event, result) => {
@@ -81,8 +78,6 @@ if (mode) {
     assert.ok(scripts[mode]);
     writeFileSync(join(process.env.HOME, ".local/share/caveman-blocks/bin/caveman-blocks"), "#!/bin/sh\n" + scripts[mode] + "\n", { mode: 0o755 });
   }
-  process.env.PATH = "";
-  delete process.env.CAVEMAN_BLOCKS_BIN;
   const original = { content: "ok", metadata: { exit: 0 } };
   assert.equal(await after(await before("missing", "c1"), original), original);
   const legacy = await mod.default.server({ directory: process.cwd() });
@@ -98,18 +93,18 @@ if (mode) {
   const event = await before("text", "c1");
   const other = { ...event, tool: "read", status: "completed", result: { content: "read" } };
   await callbacks["execute.after"](other);
-  assert.equal(other.result.content, "read"); // another tool cannot consume this shell call's hint
+  assert.equal(other.result.content, "read");
   const result = await after(event, { content: "1 rows", output, metadata });
   assert.equal(result.content, "1 rows\n\n" + hint);
   assert.equal(result.output, output);
   assert.equal(result.metadata, metadata);
   const repeated = { content: "ok" };
-  assert.equal(await after(event, repeated), repeated); // consumed once
+  assert.equal(await after(event, repeated), repeated);
 
   const content = [{ type: "text", text: "1 rows" }, { type: "file", uri: "file:///fixture", mime: "text/plain" }];
   const arrayResult = await after(await before("array", "c1"), { content, output, metadata });
   assert.deepEqual(arrayResult.content, [...content, { type: "text", text: hint }]);
-  assert.equal(content.length, 2); // preserve attachments and the original content array
+  assert.equal(content.length, 2);
   assert.equal(arrayResult.output, output);
   assert.equal(arrayResult.metadata, metadata);
   assert.deepEqual((await after(await before("empty", "c1"), {})).content, [{ type: "text", text: hint }]);
@@ -119,7 +114,6 @@ if (mode) {
     assert.equal(await after(event, original), original);
   }
 
-  // One plugin instance serves several sessions; identical call IDs must not collide.
   const first = await before("first-session", "shared");
   const second = await before("second-session", "shared");
   assert.equal((await after(second, { content: "second" })).content, "second\n\n" + hint);
@@ -128,15 +122,14 @@ if (mode) {
   const failed = { ...await before("failure", "c1"), status: "error", error: { message: "failed" } };
   const originalFailure = structuredClone(failed);
   await callbacks["execute.after"](failed);
-  assert.deepEqual(failed, originalFailure); // do not turn failures into successful results
+  assert.deepEqual(failed, originalFailure);
   const unchanged = { content: "ok" };
-  assert.equal(await after(failed, unchanged), unchanged); // failed calls consume pending hints too
+  assert.equal(await after(failed, unchanged), unchanged);
 
   const pending = await before("cleanup", "c1");
   await cleanup();
   assert.equal(await after(pending, unchanged), unchanged);
 
-  // Explicit workdir wins over the location where the plugin loaded.
   const workdirHooks = {};
   await mod.default.setup({
     location: { directory: process.env.HOME },

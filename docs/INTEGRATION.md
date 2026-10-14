@@ -133,7 +133,7 @@ on OpenCode 1.18.29 and newer; older V1 hosts do not support this dual-version d
 The contract follows OpenCode's [V2 plugin migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1).
 The `opencode-plugin` config format writes that file whole with the binary path baked in, its first line the
 marker command as a comment; `uninstall` removes the file only when that line is ours. The plugin fails
-open at every step. `testdata/e2e/opencode-plugin.txtar` drives both APIs under Node against the real binary,
+open at every step. `testdata/e2e/opencode-plugin.txtar` drives both APIs under Bun against the real binary,
 including result shapes, failures, missing binaries, interleaved sessions and cleanup. Existing installs
 must rerun `caveman-blocks hooks install --harness opencode` with the updated binary to replace the old file.
 
