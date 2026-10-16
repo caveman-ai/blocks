@@ -209,3 +209,48 @@ func TestRequires(t *testing.T) {
 		}
 	}
 }
+
+func TestFindPython(t *testing.T) {
+	look := func(have ...string) func(string) (string, error) {
+		return func(name string) (string, error) {
+			for _, h := range have {
+				if h == name {
+					return "/bin/" + name, nil
+				}
+			}
+			return "", exec.ErrNotFound
+		}
+	}
+	reports := func(m map[string]string) func(string) string {
+		return func(p string) string { return m[p] }
+	}
+	t.Run("skips a python3 that is too old", func(t *testing.T) {
+		got, err := findPython(look("python3", "python"), reports(map[string]string{"/bin/python3": "Python 3.9.18", "/bin/python": "Python 3.12.1"}))
+		if err != nil || got != "/bin/python" {
+			t.Fatalf("got %q, %v; want /bin/python", got, err)
+		}
+	})
+	t.Run("skips a python3 stub that prints no version", func(t *testing.T) {
+		got, err := findPython(look("python3", "python"), reports(map[string]string{"/bin/python": "Python 3.13.3"}))
+		if err != nil || got != "/bin/python" {
+			t.Fatalf("got %q, %v; want /bin/python", got, err)
+		}
+	})
+	t.Run("prefers python3", func(t *testing.T) {
+		got, err := findPython(look("python3", "python"), reports(map[string]string{"/bin/python3": "Python 3.11.0", "/bin/python": "Python 3.12.1"}))
+		if err != nil || got != "/bin/python3" {
+			t.Fatalf("got %q, %v; want /bin/python3", got, err)
+		}
+	})
+	t.Run("names the first refused candidate", func(t *testing.T) {
+		_, err := findPython(look("python3", "python"), reports(map[string]string{"/bin/python3": "Python 3.8.0", "/bin/python": "Python 2.7.18"}))
+		if err == nil || !strings.Contains(err.Error(), "/bin/python3") || errors.Is(err, ErrNoPython) {
+			t.Fatalf("err = %v; want one naming /bin/python3", err)
+		}
+	})
+	t.Run("none on PATH", func(t *testing.T) {
+		if _, err := findPython(look(), reports(nil)); !errors.Is(err, ErrNoPython) {
+			t.Fatalf("err = %v; want ErrNoPython", err)
+		}
+	})
+}

@@ -252,26 +252,42 @@ func CheckRequires(b *blockfile.Block) error {
 	return nil
 }
 
-// Python returns python3, else python, from PATH, and refuses one older than 3.10. The answer is
-// cached for the process.
+// Python returns python3, else python, from PATH, and refuses one older than 3.10. A candidate that
+// is too old or will not report a version (the Microsoft Store stub for python3 on Windows) is
+// passed over for the next one. The answer is cached for the process.
 func Python() (string, error) { return python() }
 
 var python = sync.OnceValues(func() (string, error) {
-	for _, name := range []string{"python3", "python"} {
-		p, err := exec.LookPath(name)
-		if err != nil {
-			continue
-		}
+	return findPython(exec.LookPath, func(p string) string {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		out, _ := exec.CommandContext(ctx, p, "--version").CombinedOutput()
-		if !python310(string(out)) {
-			return "", fmt.Errorf("%s reports %q; blocks need Python 3.10 or later", p, strings.TrimSpace(string(out)))
+		return string(out)
+	})
+})
+
+// findPython returns the first of python3 and python that look finds and version reports as 3.10 or
+// later. When none qualifies it names the first one it found and refused, else ErrNoPython.
+func findPython(look func(string) (string, error), version func(string) string) (string, error) {
+	var refused error
+	for _, name := range []string{"python3", "python"} {
+		p, err := look(name)
+		if err != nil {
+			continue
 		}
-		return p, nil
+		out := version(p)
+		if python310(out) {
+			return p, nil
+		}
+		if refused == nil {
+			refused = fmt.Errorf("%s reports %q; blocks need Python 3.10 or later", p, strings.TrimSpace(out))
+		}
+	}
+	if refused != nil {
+		return "", refused
 	}
 	return "", ErrNoPython
-})
+}
 
 // python310 reports whether `python --version` output names Python 3.10 or later.
 func python310(out string) bool {
