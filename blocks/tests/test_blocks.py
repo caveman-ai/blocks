@@ -128,6 +128,13 @@ class Blocks(unittest.TestCase):
         self.assertEqual(answer["rows"], 4)
         self.assertIn("usage.input", answer["keys"])
 
+    def test_jsonl_stats_keeps_true_and_one_apart(self):
+        path = os.path.join(self.out, "flags.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"ok": true, "n": 1}\n{"ok": 1, "n": 2}\n{"ok": true, "n": 4}\n')
+        answer = self.answer("jsonl-stats", ["--path", path, "--group-by", "ok", "--sum", "n"])
+        self.assertEqual(answer["groups"], [{"value": True, "count": 2, "sum": 5}, {"value": 1, "count": 1, "sum": 2}])
+
     def test_first_error_finds_first_match(self):
         answer = self.answer("first-error", ["--path", os.path.join(FIXTURES, "first-error", "build.log")])
         self.assertEqual(answer["line"], 8)
