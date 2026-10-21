@@ -184,7 +184,7 @@ func TestInstallFile(t *testing.T) {
 	}
 	// OpenCode 2 loads a default export with an id and a setup(ctx); the V1 hook map stays for
 	// OpenCode 1.4+, which calls server(). Both live in the same installed file.
-	for _, want := range []string{`export default {`, `id: "caveman-blocks"`, "server: CavemanBlocks", `ctx.tool.hook(`} {
+	for _, want := range []string{`export default {`, `id: "caveman-blocks"`, "server: CavemanBlocks", `ctx.tool.hook(`, `SHELL_TOOLS`} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("missing %q in:\n%s", want, b)
 		}

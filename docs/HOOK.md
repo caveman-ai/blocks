@@ -150,7 +150,7 @@ Adapters are dialect plus profile; see [INTEGRATION.md](INTEGRATION.md).
 | Cursor | `beforeShellExecution` | none | `afterShellExecution` → `additional_context` | `~/.cursor/hooks.json` | 1 | `preToolUse` is not reliable in the CLI. The pre-run response is `{}`, never `permission: allow`, so Cursor's own approval flow is untouched. Cursor also loads Claude Code hook files by default; rule 2 dedupes. |
 | Copilot CLI | `preToolUse`, tool `bash` | none | `postToolUse` → `additionalContext` | `~/.copilot/hooks/blocks.json` | 2 | Non-zero exit on pre denies. Always exit 0. `timeoutSec: 5`. |
 | Gemini CLI | `BeforeTool`, matcher `run_shell_command` | none | `AfterTool` → `additionalContext` | `~/.gemini/settings.json` | 2 | `timeout` in milliseconds: `5000`. |
-| OpenCode | `tool.execute.before`, tool `bash` | none | `tool.execute.after` → appended to `output` | `~/.config/opencode/plugins/caveman-blocks.js` | 1 | A plugin file of ours, written whole with the binary path baked in; speaks the generic protocol. Removed only when its first line is our marker. |
+| OpenCode | `tool.execute.before`, tool `shell` (2.x) / `bash` (1.x) | none | `tool.execute.after` → appended to `output` | `~/.config/opencode/plugins/caveman-blocks.js` | 1 | A plugin file of ours, written whole with the binary path baked in; speaks the generic protocol. Removed only when its first line is our marker. OpenCode 2 renamed the tool `bash` → `shell` and replaced the plugin API, so the file carries both. |
 | Amp, Cline | plugin APIs | | | | later | Passive layer only; optional shims under `integrations/`. |
 
 `hooks install` never touches project-level hook files. `hooks status` shows which harnesses are

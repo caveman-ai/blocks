@@ -11,12 +11,18 @@
 // (PluginModule.LoadError, missing "default"). This file carries both: the named `CavemanBlocks`
 // export is the V1 hook map, and the default export is the V2 definition whose `server` points at
 // the same V1 implementation for OpenCode 1.4+.
+//
+// OpenCode 2 also renamed the shell tool: V1 called it `bash`, V2 calls it `shell`. The V2 hook
+// matches both names, so one file serves either host.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 const INSTALLED = "";
+
+// The tool that runs a shell command: `bash` on OpenCode 1.x, `shell` on OpenCode 2.x.
+const SHELL_TOOLS = new Set(["shell", "bash"]);
 
 function binary() {
   for (const p of [INSTALLED, process.env.CAVEMAN_BLOCKS_BIN, join(homedir(), ".local/share/caveman-blocks/bin/caveman-blocks" + (process.platform === "win32" ? ".exe" : ""))]) {
@@ -52,7 +58,7 @@ export const CavemanBlocks = async ({ directory }) => {
   const hints = new Map(); // callID -> hint from the pre phase, delivered after the call
   return {
     "tool.execute.before": async (input, output) => {
-      if (input.tool !== "bash") return;
+      if (!SHELL_TOOLS.has(input.tool)) return;
       const command = String(output.args?.command ?? "");
       const hint = hook({ phase: "pre", session: input.sessionID, call_id: input.callID, cwd: output.args?.workdir || directory, command });
       if (hint) hints.set(input.callID, hint);
@@ -79,7 +85,7 @@ export default {
     const directory = ctx.location?.directory;
 
     await ctx.tool.hook("execute.before", (event) => {
-      if (event.tool !== "bash") return;
+      if (!SHELL_TOOLS.has(event.tool)) return;
       const input = event.input && typeof event.input === "object" ? event.input : {};
       const command = String(input.command ?? "");
       const hint = hook({ phase: "pre", session: event.sessionID, call_id: event.id, cwd: input.workdir || directory, command });
