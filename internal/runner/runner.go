@@ -211,29 +211,42 @@ func CheckPaths(root string, b *blockfile.Block, args []string) error {
 		}
 		p := value
 		if !filepath.IsAbs(p) {
-			p = filepath.Join(absRoot, p)
+			// Preserve dot segments until symlinks have been resolved. The child
+			// receives the original argument, whose OS traversal follows links first.
+			p = absRoot + string(filepath.Separator) + p
 		}
-		if !within(realRoot, resolve(filepath.Clean(p))) {
+		if !within(realRoot, resolve(p)) {
 			return &PathError{Param: name, Value: value}
 		}
 	}
 	return nil
 }
 
-// resolve evaluates symlinks in the longest existing prefix of the clean absolute path p, so a
+// resolve evaluates symlinks in the longest existing prefix of the absolute path p, so a
 // path that does not exist yet still resolves through a symlinked parent.
 func resolve(p string) string {
+	p = filepath.FromSlash(p)
 	rest := ""
 	for {
 		if r, err := filepath.EvalSymlinks(p); err == nil {
 			return filepath.Join(r, rest)
 		}
-		parent := filepath.Dir(p)
-		if parent == p {
+		// filepath.Dir cleans link/.. before the next EvalSymlinks call.
+		// Slice the raw prefix instead, retaining its filesystem semantics.
+		i := strings.LastIndexByte(p, byte(filepath.Separator))
+		if i == len(p)-1 && i > len(filepath.VolumeName(p)) {
+			p = p[:i]
+			continue
+		}
+		if i < len(filepath.VolumeName(p)) || i == len(p)-1 {
 			return filepath.Join(p, rest)
 		}
-		rest = filepath.Join(filepath.Base(p), rest)
-		p = parent
+		rest = filepath.Join(p[i+1:], rest)
+		if i == len(filepath.VolumeName(p)) {
+			p = p[:i+1]
+		} else {
+			p = p[:i]
+		}
 	}
 }
 
