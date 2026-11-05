@@ -196,7 +196,10 @@ func CheckPaths(root string, b *blockfile.Block, args []string) error {
 	if err != nil {
 		return err
 	}
-	realRoot := resolve(absRoot)
+	realRoot, err := resolve(absRoot)
+	if err != nil {
+		return err
+	}
 	for i := 0; i < len(args); i++ {
 		name, value, inline := strings.Cut(strings.TrimPrefix(args[i], "--"), "=")
 		if !strings.HasPrefix(args[i], "--") || !isPath(name) {
@@ -215,39 +218,44 @@ func CheckPaths(root string, b *blockfile.Block, args []string) error {
 			// receives the original argument, whose OS traversal follows links first.
 			p = absRoot + string(filepath.Separator) + p
 		}
-		if !within(realRoot, resolve(p)) {
+		resolved, err := resolve(p)
+		if err != nil || !within(realRoot, resolved) {
 			return &PathError{Param: name, Value: value}
 		}
 	}
 	return nil
 }
 
-// resolve evaluates symlinks in the longest existing prefix of the absolute path p, so a
-// path that does not exist yet still resolves through a symlinked parent.
-func resolve(p string) string {
+// resolve walks components in filesystem order, resolving links before applying a following
+// parent segment. Missing components are allowed for output paths, but later existing links must
+// still be checked after parent traversal. Unresolvable links fail closed.
+func resolve(p string) (string, error) {
 	p = filepath.FromSlash(p)
-	rest := ""
-	for {
-		if r, err := filepath.EvalSymlinks(p); err == nil {
-			return filepath.Join(r, rest)
-		}
-		// filepath.Dir cleans link/.. before the next EvalSymlinks call.
-		// Slice the raw prefix instead, retaining its filesystem semantics.
-		i := strings.LastIndexByte(p, byte(filepath.Separator))
-		if i == len(p)-1 && i > len(filepath.VolumeName(p)) {
-			p = p[:i]
+	volume := filepath.VolumeName(p)
+	current := volume + string(filepath.Separator)
+	for _, part := range strings.Split(p[len(volume):], string(filepath.Separator)) {
+		if part == "" || part == "." {
 			continue
 		}
-		if i < len(filepath.VolumeName(p)) || i == len(p)-1 {
-			return filepath.Join(p, rest)
+		next := filepath.Join(current, part)
+		resolved, err := filepath.EvalSymlinks(next)
+		if err == nil {
+			current = resolved
+			continue
 		}
-		rest = filepath.Join(p[i+1:], rest)
-		if i == len(filepath.VolumeName(p)) {
-			p = p[:i+1]
-		} else {
-			p = p[:i]
+		if !os.IsNotExist(err) {
+			return "", err
 		}
+		// An existing dangling link is not an ordinary missing output component.
+		// Its destination cannot be established by EvalSymlinks; never assume it stays local.
+		if _, statErr := os.Lstat(next); statErr == nil {
+			return "", err
+		} else if !os.IsNotExist(statErr) {
+			return "", statErr
+		}
+		current = next
 	}
+	return current, nil
 }
 
 func within(root, p string) bool {
