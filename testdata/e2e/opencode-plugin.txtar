@@ -1,7 +1,7 @@
-# The OpenCode plugin: hooks install writes it with the binary baked in; driven under bun, a bash call
-# that matches a block gets the hint appended to its output, and other calls are left alone.
+# The installed OpenCode plugin: V2 shell hooks and V1 bash hooks.
 [!exec:python3] skip 'python3 is not on PATH'
 [!exec:bun] skip 'bun is not on PATH'
+[!exec:sh] skip 'sh is not on PATH'
 env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
 
 exec git init -q repo
@@ -14,23 +14,139 @@ exists $WORK/home/.config/opencode/plugins/caveman-blocks.js
 grep '^// .*/caveman-blocks hook --harness generic$' $WORK/home/.config/opencode/plugins/caveman-blocks.js
 
 exec bun ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js
-stdout '^matched: 1 rows\n\nBlocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>$'
-stdout '^plain: ok$'
+stdout '^V2 and V1 hooks: ok$'
+
+rm $WORK/home/.local/share/caveman-blocks/bin/caveman-blocks
+exec sh -c 'PATH=$WORK/nowhere CAVEMAN_BLOCKS_BIN= "$(command -v bun)" "$@"' -- ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js missing
+stdout '^missing binary: ok$'
+
+exec sh -c 'PATH=$WORK/nowhere CAVEMAN_BLOCKS_BIN= "$(command -v bun)" "$@"' -- ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js malformed
+stdout '^malformed binary: ok$'
+exec sh -c 'PATH=$WORK/nowhere CAVEMAN_BLOCKS_BIN= "$(command -v bun)" "$@"' -- ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js nonzero
+stdout '^nonzero binary: ok$'
+exec sh -c 'PATH=$WORK/nowhere CAVEMAN_BLOCKS_BIN= "$(command -v bun)" "$@"' -- ../drive.mjs $WORK/home/.config/opencode/plugins/caveman-blocks.js invalid-hint
+stdout '^invalid-hint binary: ok$'
 
 exec caveman-blocks hooks uninstall --harness opencode
 stdout '^opencode: removed from ~/.config/opencode/plugins/caveman-blocks.js$'
 ! exists $WORK/home/.config/opencode/plugins/caveman-blocks.js
 
 -- drive.mjs --
-// Plays OpenCode: one plugin instance, a before and an after per call, cwd the repo.
-const mod = await import(process.argv[2]);
-const hooks = await mod.CavemanBlocks({ directory: process.cwd() });
-const run = async (callID, command, result) => {
-  const args = { command };
-  await hooks["tool.execute.before"]({ tool: "bash", sessionID: "e2e", callID }, { args });
-  const output = { title: "bash", output: result, metadata: {} };
-  await hooks["tool.execute.after"]({ tool: "bash", sessionID: "e2e", callID, args }, output);
-  return output.output;
+import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const mod = await import(pathToFileURL(process.argv[2]));
+assert.equal(mod.default.id, "caveman-blocks");
+assert.equal(typeof mod.default.setup, "function");
+assert.equal(mod.default.server, mod.CavemanBlocks);
+const callbacks = {};
+const cleanup = await mod.default.setup({
+  location: { directory: process.cwd() },
+  tool: { hook: async (name, callback) => {
+    assert.equal(callbacks[name], undefined);
+    callbacks[name] = callback;
+    return { dispose() {} };
+  } },
+});
+assert.deepEqual(Object.keys(callbacks).sort(), ["execute.after", "execute.before"]);
+
+const command = "python3 - <<'EOF'\nimport json\nd=json.load(open('x.json'))\nprint(d.keys())\nEOF";
+const hint = "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>";
+const before = async (sessionID, id, tool = "shell", input = { command }) => {
+  const event = { sessionID, id, tool, input };
+  const original = structuredClone(event);
+  await callbacks["execute.before"](event);
+  assert.deepEqual(event, original);
+  return event;
 };
-console.log("matched: " + await run("c1", "python3 - <<'EOF'\nimport json\nd=json.load(open('x.json'))\nprint(d.keys())\nEOF", "1 rows"));
-console.log("plain: " + await run("c2", "ls", "ok"));
+const after = async (event, result) => {
+  const completed = { ...event, status: "completed", result };
+  await callbacks["execute.after"](completed);
+  return completed.result;
+};
+
+const mode = process.argv[3];
+if (mode) {
+  const scripts = {
+    malformed: "printf 'not JSON'",
+    nonzero: "printf '{\"hint\":\"must not appear\"}'; exit 1",
+    "invalid-hint": "printf '{\"hint\":{\"bad\":true}}'",
+  };
+  if (mode !== "missing") {
+    assert.ok(scripts[mode]);
+    writeFileSync(join(process.env.HOME, ".local/share/caveman-blocks/bin/caveman-blocks"), "#!/bin/sh\n" + scripts[mode] + "\n", { mode: 0o755 });
+  }
+  const original = { content: "ok", metadata: { exit: 0 } };
+  assert.equal(await after(await before("missing", "c1"), original), original);
+  const legacy = await mod.default.server({ directory: process.cwd() });
+  const event = { tool: "bash", sessionID: "missing-v1", callID: "c1" };
+  await legacy["tool.execute.before"](event, { args: { command } });
+  const output = { output: "ok" };
+  await legacy["tool.execute.after"](event, output);
+  assert.equal(output.output, "ok");
+  console.log(mode + " binary: ok");
+} else {
+  const output = { output: "1 rows", exit: 0, truncated: false };
+  const metadata = { exit: 0 };
+  const event = await before("text", "c1");
+  const other = { ...event, tool: "read", status: "completed", result: { content: "read" } };
+  await callbacks["execute.after"](other);
+  assert.equal(other.result.content, "read");
+  const result = await after(event, { content: "1 rows", output, metadata });
+  assert.equal(result.content, "1 rows\n\n" + hint);
+  assert.equal(result.output, output);
+  assert.equal(result.metadata, metadata);
+  const repeated = { content: "ok" };
+  assert.equal(await after(event, repeated), repeated);
+
+  const content = [{ type: "text", text: "1 rows" }, { type: "file", uri: "file:///fixture", mime: "text/plain" }];
+  const arrayResult = await after(await before("array", "c1"), { content, output, metadata });
+  assert.deepEqual(arrayResult.content, [...content, { type: "text", text: hint }]);
+  assert.equal(content.length, 2);
+  assert.equal(arrayResult.output, output);
+  assert.equal(arrayResult.metadata, metadata);
+  assert.deepEqual((await after(await before("empty", "c1"), {})).content, [{ type: "text", text: hint }]);
+
+  for (const event of [await before("plain", "c1", "shell", { command: "ls" }), await before("other", "c1", "read")]) {
+    const original = { content: "ok" };
+    assert.equal(await after(event, original), original);
+  }
+
+  const first = await before("first-session", "shared");
+  const second = await before("second-session", "shared");
+  assert.equal((await after(second, { content: "second" })).content, "second\n\n" + hint);
+  assert.equal((await after(first, { content: "first" })).content, "first\n\n" + hint);
+
+  const failed = { ...await before("failure", "c1"), status: "error", error: { message: "failed" } };
+  const originalFailure = structuredClone(failed);
+  await callbacks["execute.after"](failed);
+  assert.deepEqual(failed, originalFailure);
+  const unchanged = { content: "ok" };
+  assert.equal(await after(failed, unchanged), unchanged);
+
+  const pending = await before("cleanup", "c1");
+  await cleanup();
+  assert.equal(await after(pending, unchanged), unchanged);
+
+  const workdirHooks = {};
+  await mod.default.setup({
+    location: { directory: process.env.HOME },
+    tool: { hook: async (name, callback) => { workdirHooks[name] = callback; } },
+  });
+  const workdirEvent = { tool: "shell", sessionID: "workdir", id: "c1", input: { command, workdir: process.cwd() } };
+  await workdirHooks["execute.before"](workdirEvent);
+  const completed = { ...workdirEvent, status: "completed", result: { content: "ok" } };
+  await workdirHooks["execute.after"](completed);
+  assert.equal(completed.result.content, "ok\n\n" + hint);
+
+  const legacy = await mod.default.server({ directory: process.cwd() });
+  const legacyEvent = { tool: "bash", sessionID: "legacy", callID: "c1" };
+  await legacy["tool.execute.before"](legacyEvent, { args: { command } });
+  const legacyOutput = { title: "bash", output: "1 rows", metadata };
+  await legacy["tool.execute.after"](legacyEvent, legacyOutput);
+  assert.equal(legacyOutput.output, "1 rows\n\n" + hint);
+  assert.equal(legacyOutput.metadata, metadata);
+  console.log("V2 and V1 hooks: ok");
+}

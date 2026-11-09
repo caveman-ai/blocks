@@ -123,12 +123,21 @@ and rule 2 dedupes the double call when a user has both the plugin and the user-
 ## The OpenCode plugin
 
 OpenCode has no hook file; it loads `.js` plugins from `~/.config/opencode/plugins/` and `.opencode/plugins/`.
-`plugins/caveman-blocks/opencode/caveman-blocks.js` is one: `tool.execute.before` on `bash` sends the
-generic request to `caveman-blocks hook --harness generic` and keeps the hint by call id, and
-`tool.execute.after` appends it to the tool output, since the before-hook has no context field. The
-`opencode-plugin` config format writes that file whole with the binary path baked in, its first line the
+`plugins/caveman-blocks/opencode/caveman-blocks.js` default-exports a dependency-free V2 definition with
+an `id` and `setup(ctx)`. It registers `ctx.tool.hook("execute.before", ...)` on `shell`, sends
+`event.input` to `caveman-blocks hook --harness generic`, and keeps the hint by session and `event.id`.
+`execute.after` consumes the hint even on failure; on success it appends it to `event.result.content`,
+preserving structured output, metadata and file attachments. The before-hook has no context field.
+Pending hints are cleared when the plugin unloads. A `server()` entrypoint retains the V1 `bash` hooks.
+The plugin supports OpenCode 1.18.29 and newer on V1, and OpenCode 2.0.28 and newer on V2.
+Older V1 hosts expect a callable default export, so they get no hints. The V2 path is tested on 2.0.28 and 2.0.32.
+The contract follows OpenCode's [V2 plugin migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1).
+The `opencode-plugin` config format writes that file whole with the binary path baked in, its first line the
 marker command as a comment; `uninstall` removes the file only when that line is ours. The plugin fails
-open at every step. `testdata/e2e/opencode-plugin.txtar` drives it under bun against the real binary.
+open at every step. `testdata/e2e/opencode-plugin.txtar` drives both APIs under Bun against the real binary,
+including result shapes, failures, missing binaries, interleaved sessions and cleanup.
+`testdata/e2e/opencode-host.txtar` loads the plugin in a real OpenCode server, at the version that CI pins. Existing installs
+must rerun `caveman-blocks hooks install --harness opencode` with the updated binary to replace the old file.
 
 ## Plugin shims for Tier C harnesses
 
