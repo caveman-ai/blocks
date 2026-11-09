@@ -11,8 +11,10 @@ exec python3 $WORK/status.py
 stdout '^caveman-blocks: active$'
 
 -- status.py --
-import base64, json, os, signal, subprocess, time, urllib.request
+import base64, json, os, signal, subprocess, sys, time, urllib.request
 
+last_error = None
+signal.signal(signal.SIGALRM, lambda *_: sys.exit(f"timed out waiting for caveman-blocks; last error: {last_error}"))
 signal.alarm(90)
 server = subprocess.Popen(
     ["opencode", "serve", "--hostname", "127.0.0.1", "--port", "0"],
@@ -26,13 +28,16 @@ try:
         headers={"Authorization": "Basic " + auth},
     )
     while True:
-        with urllib.request.urlopen(request, timeout=10) as response:
-            plugin = next(
-                (p for p in json.load(response)["data"] if p["source"].get("path", "").endswith("/caveman-blocks.js")),
-                None,
-            )
-        if plugin:
-            break
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                plugin = next(
+                    (p for p in json.load(response)["data"] if p["source"].get("path", "").endswith("/caveman-blocks.js")),
+                    None,
+                )
+            if plugin:
+                break
+        except OSError as error:
+            last_error = error
         time.sleep(0.5)
     state = plugin["state"]
     print(f"{plugin.get('id')}: {state['status']} {state.get('error', '')}".rstrip())
