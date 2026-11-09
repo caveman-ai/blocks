@@ -135,7 +135,8 @@ The contract follows OpenCode's [V2 plugin migration guide](https://opencode.ai/
 The `opencode-plugin` config format writes that file whole with the binary path baked in, its first line the
 marker command as a comment; `uninstall` removes the file only when that line is ours. The plugin fails
 open at every step. `testdata/e2e/opencode-plugin.txtar` drives both APIs under Bun against the real binary,
-including result shapes, failures, missing binaries, interleaved sessions and cleanup. Existing installs
+including result shapes, failures, missing binaries, interleaved sessions and cleanup.
+`testdata/e2e/opencode-host.txtar` loads the plugin in a real OpenCode server, at the version that CI pins. Existing installs
 must rerun `caveman-blocks hooks install --harness opencode` with the updated binary to replace the old file.
 
 ## Plugin shims for Tier C harnesses

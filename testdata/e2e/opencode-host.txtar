@@ -1,0 +1,41 @@
+# A real OpenCode server loads the installed plugin. CI pins the OpenCode version in .github/workflows/ci.yml.
+# Only a model call fires the shell hooks, so opencode-plugin.txtar covers them against a stub host.
+[!exec:opencode] skip 'opencode is not on PATH'
+[!exec:python3] skip 'python3 is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state OPENCODE_SERVER_PASSWORD=e2e
+
+exec git init -q repo
+cd repo
+exec caveman-blocks hooks install --harness opencode
+exec python3 $WORK/status.py
+stdout '^caveman-blocks: active$'
+
+-- status.py --
+import base64, json, os, signal, subprocess, time, urllib.request
+
+signal.alarm(90)
+server = subprocess.Popen(
+    ["opencode", "serve", "--hostname", "127.0.0.1", "--port", "0"],
+    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+)
+try:
+    url = next(line.split()[-1] for line in server.stdout if line.startswith("server listening on "))
+    auth = base64.b64encode(("opencode:" + os.environ["OPENCODE_SERVER_PASSWORD"]).encode()).decode()
+    request = urllib.request.Request(
+        url + "/api/plugin?location%5Bdirectory%5D=" + os.getcwd(),
+        headers={"Authorization": "Basic " + auth},
+    )
+    while True:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            plugin = next(
+                (p for p in json.load(response)["data"] if p["source"].get("path", "").endswith("/caveman-blocks.js")),
+                None,
+            )
+        if plugin:
+            break
+        time.sleep(0.5)
+    state = plugin["state"]
+    print(f"{plugin.get('id')}: {state['status']} {state.get('error', '')}".rstrip())
+finally:
+    server.terminate()
+    server.wait()
