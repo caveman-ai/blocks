@@ -177,7 +177,7 @@ func TestInstallFile(t *testing.T) {
 	c, err := f.Install(path, bin)
 	mustChange(t, true, c, err)
 	b, _ := os.ReadFile(path)
-	for _, want := range []string{"// /opt/cb/caveman-blocks hook --harness generic\n", `const INSTALLED = "/opt/cb/caveman-blocks";`, `"tool.execute.after"`} {
+	for _, want := range []string{"// /opt/cb/caveman-blocks hook --harness generic\n", `const INSTALLED = "/opt/cb/caveman-blocks";`, `id: "caveman-blocks"`, `"execute.after"`} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("missing %q in:\n%s", want, b)
 		}

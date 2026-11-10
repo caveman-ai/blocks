@@ -1,7 +1,10 @@
-// Caveman Blocks for OpenCode. Forwards each bash call to `caveman-blocks hook --harness generic`
-// (docs/INTEGRATION.md, layer 1) and appends the one-line hint to the tool output, since OpenCode's
+// Caveman Blocks for OpenCode 2. Forwards each shell call to `caveman-blocks hook --harness generic`
+// (docs/INTEGRATION.md, layer 1) and appends the one-line hint to the tool result, since the
 // before-hook has no context field. Never blocks, never rewrites, fails open: without the binary, or
 // on any error, OpenCode runs exactly as it would without this file.
+//
+// Contract: OpenCode 2 plugin API — default export { id, setup }
+// (https://opencode.ai/v2/docs/build/plugins/migrate-v1).
 //
 // Install: `caveman-blocks hooks install --harness opencode` writes this file with the binary path
 // baked in, or copy it to ~/.config/opencode/plugins/ or .opencode/plugins/ yourself.
@@ -32,19 +35,28 @@ function hook(req) {
   }
 }
 
-export const CavemanBlocks = async ({ directory }) => {
-  const hints = new Map(); // callID -> hint from the pre phase, delivered after the call
-  return {
-    "tool.execute.before": async (input, output) => {
-      if (input.tool !== "bash") return;
-      const command = String(output.args?.command ?? "");
-      const hint = hook({ phase: "pre", session: input.sessionID, call_id: input.callID, cwd: output.args?.workdir || directory, command });
-      if (hint) hints.set(input.callID, hint);
-    },
-    "tool.execute.after": async (input, output) => {
-      const hint = hints.get(input.callID);
-      hints.delete(input.callID);
-      if (hint) output.output = `${output.output}\n\n${hint}`;
-    },
-  };
+export default {
+  id: "caveman-blocks",
+  async setup(ctx) {
+    const hints = new Map(); // call id -> hint from the pre phase, delivered after the call
+    const directory = ctx.location?.directory;
+    const key = (event) => event.id ?? event.sessionID; // fall back when the host omits the call id
+
+    await ctx.tool.hook("execute.before", (event) => {
+      if (event.tool !== "bash" && event.tool !== "shell") return;
+      const input = event.input ?? {};
+      const command = String(input.command ?? "");
+      const hint = hook({ phase: "pre", session: event.sessionID, call_id: event.id, cwd: input.workdir || directory, command });
+      if (hint) hints.set(key(event), hint);
+    });
+
+    await ctx.tool.hook("execute.after", (event) => {
+      const hint = hints.get(key(event));
+      hints.delete(key(event));
+      if (!hint || event.status !== "completed") return;
+      const result = event.result;
+      if (typeof result === "string") event.result = `${result}\n\n${hint}`;
+      else if (result && typeof result.content === "string") event.result = { ...result, content: `${result.content}\n\n${hint}` };
+    });
+  },
 };
