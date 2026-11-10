@@ -49,6 +49,10 @@ Primary sources fetched the same day. Local observations are marked. Unconfirmed
 ## Amp, OpenCode, Cline
 - Amp `tool.call` plugin: allow, reject-and-continue, modify. `.amp/plugins/`, `~/.config/amp/plugins/`.
 - OpenCode `tool.execute.before` plugin: throw to block, mutate `output.args` to rewrite. `.opencode/plugins/`, `~/.config/opencode/plugins/`.
+  Amended 2026-11-10: OpenCode 2 replaces that contract. A plugin default-exports `{ id, setup }` and registers
+  `ctx.tool.hook("execute.before" | "execute.after")`; a 1.x hook object fails to load with “Plugin must export a
+  default definition with an id and an effect or setup function” (verified against OpenCode 2.1.2).
+  https://opencode.ai/v2/docs/build/plugins/migrate-v1
 - Cline SDK plugin `hooks.beforeTool`; return shapes unconfirmed.
 
 ## Standards and distribution

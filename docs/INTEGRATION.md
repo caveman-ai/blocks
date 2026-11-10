@@ -123,9 +123,10 @@ and rule 2 dedupes the double call when a user has both the plugin and the user-
 ## The OpenCode plugin
 
 OpenCode has no hook file; it loads `.js` plugins from `~/.config/opencode/plugins/` and `.opencode/plugins/`.
-`plugins/caveman-blocks/opencode/caveman-blocks.js` is one: `tool.execute.before` on `bash` sends the
+`plugins/caveman-blocks/opencode/caveman-blocks.js` is one: it default-exports the OpenCode 2 plugin
+definition (`id` and `setup`), registers `execute.before` on the `bash` and `shell` tools, sends the
 generic request to `caveman-blocks hook --harness generic` and keeps the hint by call id, and
-`tool.execute.after` appends it to the tool output, since the before-hook has no context field. The
+`execute.after` appends it to the tool result, since the before-hook has no context field. The
 `opencode-plugin` config format writes that file whole with the binary path baked in, its first line the
 marker command as a comment; `uninstall` removes the file only when that line is ours. The plugin fails
 open at every step. `testdata/e2e/opencode-plugin.txtar` drives it under bun against the real binary.

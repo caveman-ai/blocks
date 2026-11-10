@@ -22,15 +22,24 @@ stdout '^opencode: removed from ~/.config/opencode/plugins/caveman-blocks.js$'
 ! exists $WORK/home/.config/opencode/plugins/caveman-blocks.js
 
 -- drive.mjs --
-// Plays OpenCode: one plugin instance, a before and an after per call, cwd the repo.
+// Plays OpenCode 2: one plugin instance, registered tool hooks, a before and an after per call.
 const mod = await import(process.argv[2]);
-const hooks = await mod.CavemanBlocks({ directory: process.cwd() });
+const hooks = new Map();
+const ctx = {
+  location: { directory: process.cwd() },
+  tool: {
+    hook: async (name, callback) => {
+      hooks.set(name, callback);
+      return { dispose: async () => {} };
+    },
+  },
+};
+await mod.default.setup(ctx);
 const run = async (callID, command, result) => {
-  const args = { command };
-  await hooks["tool.execute.before"]({ tool: "bash", sessionID: "e2e", callID }, { args });
-  const output = { title: "bash", output: result, metadata: {} };
-  await hooks["tool.execute.after"]({ tool: "bash", sessionID: "e2e", callID, args }, output);
-  return output.output;
+  const event = { tool: "bash", sessionID: "e2e", id: callID, status: "completed", input: { command }, result: { content: result, metadata: {} } };
+  await hooks.get("execute.before")(event);
+  await hooks.get("execute.after")(event);
+  return event.result.content;
 };
 console.log("matched: " + await run("c1", "python3 - <<'EOF'\nimport json\nd=json.load(open('x.json'))\nprint(d.keys())\nEOF", "1 rows"));
 console.log("plain: " + await run("c2", "ls", "ok"));
