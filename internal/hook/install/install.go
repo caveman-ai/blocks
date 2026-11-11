@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/caveman-ai/blocks/internal/hook"
+	"github.com/caveman-ai/blocks/plugins"
 )
 
 // marker matches exactly the command entries writes, `<bin> hook --harness <d>[ --phase pre|post]`,
@@ -34,7 +35,7 @@ func binPattern(dir string) string {
 type Format struct {
 	harness   string // value of --harness in our command: the profile's dialect
 	cursor    bool   // cursor-hooks shape; otherwise the Claude Code shape
-	file      bool   // opencode-plugin: a whole file of ours (file.go)
+	plugin    string // opencode-plugin, pi-extension: the embedded source of a whole file of ours (file.go)
 	pre, post hook.HookEvent
 	timeout   int // in the harness's own unit (profile timeout.unit)
 }
@@ -47,7 +48,9 @@ func For(format string) (Format, error) {
 	case "cursor-hooks":
 		f.cursor = true
 	case "opencode-plugin":
-		f.file = true
+		f.plugin = plugins.OpenCode
+	case "pi-extension":
+		f.plugin = plugins.Pi
 	default:
 		return Format{}, fmt.Errorf("install: unsupported config format %q", format)
 	}
@@ -111,7 +114,7 @@ func (f Format) Install(path, bin string) (changed bool, err error) {
 	if !filepath.IsAbs(bin) || strings.TrimSuffix(filepath.Base(bin), ".exe") != "caveman-blocks" {
 		return false, fmt.Errorf("install: binary %q must be an absolute path ending in caveman-blocks", bin)
 	}
-	if f.file {
+	if f.plugin != "" {
 		return f.installFile(path, bin)
 	}
 	path, doc, before, err := load(path)
@@ -145,7 +148,7 @@ func (f Format) Install(path, bin string) (changed bool, err error) {
 
 // Uninstall removes exactly our entries, and any event list or hooks table they leave empty.
 func (f Format) Uninstall(path string) (changed bool, err error) {
-	if f.file {
+	if f.plugin != "" {
 		return f.uninstallFile(path)
 	}
 	path, doc, _, err := load(path)
@@ -178,7 +181,7 @@ func (f Format) Uninstall(path string) (changed bool, err error) {
 
 // Status reports whether one of our entries is in the file, and the binary it runs.
 func (f Format) Status(path string) (installed bool, bin string, err error) {
-	if f.file {
+	if f.plugin != "" {
 		return f.statusFile(path)
 	}
 	_, doc, _, err := load(path)

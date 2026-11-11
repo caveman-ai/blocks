@@ -7,3 +7,8 @@ import _ "embed"
 //
 //go:embed caveman-blocks/opencode/caveman-blocks.js
 var OpenCode string
+
+// Pi is the pi extension; install bakes the binary path into its INSTALLED constant.
+//
+//go:embed caveman-blocks/pi/caveman-blocks.js
+var Pi string

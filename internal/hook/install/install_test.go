@@ -164,9 +164,16 @@ func TestInstallFollowsSymlinkAndQuotes(t *testing.T) {
 	}
 }
 
-// TestInstallFile covers the opencode-plugin format: a whole file, written once, removed only when ours.
+// TestInstallFile covers the whole-file formats, opencode-plugin and pi-extension: a file written
+// once, removed only when ours.
 func TestInstallFile(t *testing.T) {
-	f, err := For("opencode-plugin")
+	for format, hookName := range map[string]string{"opencode-plugin": `"tool.execute.after"`, "pi-extension": `pi.on("tool_result"`} {
+		t.Run(format, func(t *testing.T) { installFile(t, format, hookName) })
+	}
+}
+
+func installFile(t *testing.T, format, hookName string) {
+	f, err := For(format)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +184,7 @@ func TestInstallFile(t *testing.T) {
 	c, err := f.Install(path, bin)
 	mustChange(t, true, c, err)
 	b, _ := os.ReadFile(path)
-	for _, want := range []string{"// /opt/cb/caveman-blocks hook --harness generic\n", `const INSTALLED = "/opt/cb/caveman-blocks";`, `"tool.execute.after"`} {
+	for _, want := range []string{"// /opt/cb/caveman-blocks hook --harness generic\n", `const INSTALLED = "/opt/cb/caveman-blocks";`, hookName} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("missing %q in:\n%s", want, b)
 		}

@@ -43,7 +43,7 @@ func doctorCmd() *cobra.Command {
 				return err
 			}
 			if len(profiles) == 0 {
-				report(false, "no harness detected (~/.claude, ~/.codex, ~/.cursor, ~/.config/opencode)")
+				report(false, "no harness detected (~/.claude, ~/.codex, ~/.cursor, ~/.config/opencode, ~/.pi/agent)")
 			}
 			for _, p := range profiles {
 				var b strings.Builder
