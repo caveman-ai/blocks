@@ -27,5 +27,12 @@
     "input": {"phase": "post", "command": "cat a.json", "cwd": "/elsewhere", "session": "s1", "call_id": "t2"},
     "cache": {"call": {"hint": "cached hint"}},
     "expect": {"hint": "cached hint", "events": null}
+  },
+  {
+    "name": "post replays by a pi tool call id, which carries a pipe and underscores",
+    "cfg": {"repo_root": "/repo"},
+    "input": {"phase": "post", "command": "cat a.json", "cwd": "/repo", "session": "019e0f3a-7c1d", "call_id": "call_Zx81Qp|fc_0a9e"},
+    "cache": {"call": {"hint": "cached hint", "events": [{"ts": "2026-10-03T12:00:00Z", "session": "019e0f3a-7c1d", "kind": "hint", "block": "json-peek"}]}},
+    "expect": {"hint": "cached hint", "events": null}
   }
 ]
