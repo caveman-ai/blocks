@@ -49,6 +49,7 @@ Primary sources fetched the same day. Local observations are marked. Unconfirmed
 ## Amp, OpenCode, Cline
 - Amp `tool.call` plugin: allow, reject-and-continue, modify. `.amp/plugins/`, `~/.config/amp/plugins/`.
 - OpenCode `tool.execute.before` plugin: throw to block, mutate `output.args` to rewrite. `.opencode/plugins/`, `~/.config/opencode/plugins/`.
+- pi (added with the pi harness, from `docs/extensions.md` of https://github.com/earendil-works/pi, pi 1.5.1): no hook file. Extensions load from `~/.pi/agent/extensions/*.js` and `.pi/extensions/` (the agent directory moves with `PI_CODING_AGENT_DIR`). `export default function (pi)`; `pi.on("tool_call", (event, ctx))` runs before a tool and can block or mutate `event.input` (`event.toolName`, `event.toolCallId`, `event.input.command` for `bash`); `pi.on("tool_result", ...)` can return a patch with a new `content` array. `ctx.cwd` and `ctx.sessionManager.getSessionId()` give the directory and session.
 - Cline SDK plugin `hooks.beforeTool`; return shapes unconfirmed.
 
 ## Standards and distribution
