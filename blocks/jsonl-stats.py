@@ -69,25 +69,27 @@ def label(value):
 
 def stats(path, group_by, sum_key, top):
     rows = load_rows(path)
-    counts, sums, missing = {}, {}, 0
+    counts, sums, shows, missing = {}, {}, {}, 0
     for row in rows:
         value = lookup(row, group_by)
         if value is MISSING:
             missing += 1
             continue
-        key = label(value)
+        shown = label(value)
+        key = (isinstance(value, bool), shown)  # True == 1 in Python, but they are different JSON values
+        shows[key] = shown
         counts[key] = counts.get(key, 0) + 1
         if sum_key:
             amount = lookup(row, sum_key)
             if isinstance(amount, (int, float)) and not isinstance(amount, bool):
                 sums[key] = sums.get(key, 0) + amount
 
-    ranked = sorted(counts.items(), key=lambda item: (-item[1], str(item[0])))
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], str(shows[item[0]])))
     groups = []
-    for value, count in ranked[:top]:
-        group = {"value": value, "count": count}
+    for key, count in ranked[:top]:
+        group = {"value": shows[key], "count": count}
         if sum_key:
-            group["sum"] = round(sums.get(value, 0), 6)
+            group["sum"] = round(sums.get(key, 0), 6)
         groups.append(group)
     return {"rows": len(rows), "groups": groups, "truncated": len(ranked) > top, "missing": missing}
 
