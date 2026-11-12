@@ -99,7 +99,7 @@ harness with a context field on its pre-run event needs only `pre_event`; one wi
 | Tier | Events | What works | Harnesses | Phase |
 |---|---|---|---|---|
 | A | `pre_event` only | everything, one event | Claude Code, Codex CLI | 1 |
-| B | `pre_event` and `post_event` | everything, two events | Cursor (1), OpenCode (1, plugin file), Copilot CLI (2), Gemini CLI (2) | 1–2 |
+| B | `pre_event` and `post_event` | everything, two events | Cursor (1), OpenCode (1, plugin file), pi (1, extension file), Copilot CLI (2), Gemini CLI (2) | 1–2 |
 | C | none | rules, index, exports; no capture, no hints | Amp, Cline, anything that reads AGENTS.md | always |
 
 Tier C is not a degraded mode to apologize for. It is the passive layer every harness gets, and it is
@@ -129,6 +129,18 @@ generic request to `caveman-blocks hook --harness generic` and keeps the hint by
 `opencode-plugin` config format writes that file whole with the binary path baked in, its first line the
 marker command as a comment; `uninstall` removes the file only when that line is ours. The plugin fails
 open at every step. `testdata/e2e/opencode-plugin.txtar` drives it under bun against the real binary.
+
+## The pi extension
+
+pi has no hook file; it loads `.js` extensions from `~/.pi/agent/extensions/` and `.pi/extensions/`.
+`plugins/caveman-blocks/pi/caveman-blocks.js` is one: `tool_call` on `bash` sends the generic request
+to `caveman-blocks hook --harness generic --phase pre`, and when that produced a hint, `tool_result` sends
+the same request with `--phase post`, which replays the decision from `cache/` by `toolCallId` and is
+appended to the result's `content`, since `tool_call` has no context field. The `pi-extension` config
+format writes that file whole with the binary path baked in, its first line the marker command as a
+comment, under `$PI_CODING_AGENT_DIR` when set, else `~/.pi/agent`; `uninstall` removes the file only
+when that line is ours. The extension fails open at every step.
+`testdata/e2e/pi-extension.txtar` drives it under node against the real binary.
 
 ## Plugin shims for Tier C harnesses
 

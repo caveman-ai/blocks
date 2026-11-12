@@ -2,6 +2,7 @@
 # `hooks install`, `hooks uninstall` and `hooks status` read this: config file, format, events, timeout.
 # A path may start with ${VAR:-default}: the harness's own config-dir variable when set, else default.
 # OpenCode has none: OPENCODE_CONFIG_DIR adds a directory, it does not move ~/.config/opencode.
+# pi moves its agent directory with PI_CODING_AGENT_DIR.
 
 [claude-code]
 phase = 1
@@ -46,6 +47,17 @@ pre_event = { name = "tool.execute.before", matcher = "bash" }
 post_event = { name = "tool.execute.after", matcher = "bash" }
 timeout = { value = 5, unit = "s" }
 trust_note = "OpenCode loads the plugin on its next start; the hint arrives appended to the tool output."
+
+[pi]
+phase = 1
+dialect = "generic"
+detect = ["${PI_CODING_AGENT_DIR:-~/.pi/agent}"]
+config = "${PI_CODING_AGENT_DIR:-~/.pi/agent}/extensions/caveman-blocks.js"
+config_format = "pi-extension"
+pre_event = { name = "tool_call", matcher = "bash" }
+post_event = { name = "tool_result", matcher = "bash" }
+timeout = { value = 5, unit = "s" }
+trust_note = "pi loads the extension on its next start or /reload; the hint arrives appended to the bash result."
 
 [copilot]
 phase = 2

@@ -30,9 +30,20 @@ stdout 'open /hooks in Codex'
 exec caveman-blocks hooks install --harness opencode
 stdout '^opencode: installed in ~/.config/opencode/plugins/caveman-blocks.js$'
 stdout 'loads the plugin on its next start'
+exec caveman-blocks hooks install --harness pi
+stdout '^pi: installed in ~/.pi/agent/extensions/caveman-blocks.js$'
+stdout 'loads the extension on its next start'
+grep '^// .*/home/.local/share/caveman-blocks/bin/caveman-blocks hook --harness generic$' home/.pi/agent/extensions/caveman-blocks.js
+exec caveman-blocks hooks install --harness pi
+stdout '^pi: unchanged'
+exec caveman-blocks hooks status --harness pi
+stdout '^pi: installed, runs .*/home/.local/share/caveman-blocks/bin/caveman-blocks$'
 ! exec caveman-blocks hooks install --harness nope
 stderr 'unknown --harness'
 
+exec caveman-blocks hooks uninstall --harness pi
+stdout '^pi: removed from ~/.pi/agent/extensions/caveman-blocks.js$'
+! exists home/.pi/agent/extensions/caveman-blocks.js
 exec caveman-blocks hooks uninstall
 stdout '^claude-code: removed from ~/.claude/settings.json$'
 ! grep 'caveman-blocks' home/.claude/settings.json
@@ -60,6 +71,16 @@ stdout '^codex: removed from .*/codexhome/hooks.json$'
 ! grep 'caveman-blocks' max5/settings.json
 ! exists home/.claude
 env CLAUDE_CONFIG_DIR= CODEX_HOME=
+
+# PI_CODING_AGENT_DIR moves pi's agent directory the same way.
+env PI_CODING_AGENT_DIR=$WORK/pidir
+mkdir pidir
+exec caveman-blocks hooks install
+stdout '^pi: installed in .*/pidir/extensions/caveman-blocks.js$'
+exists pidir/extensions/caveman-blocks.js
+exec caveman-blocks hooks uninstall --harness pi
+stdout '^pi: removed from .*/pidir/extensions/caveman-blocks.js$'
+env PI_CODING_AGENT_DIR=
 
 # A binary running from an npx cache would leave a dangling hook.
 cpbin _npx/caveman-blocks

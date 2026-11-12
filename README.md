@@ -92,7 +92,7 @@ Run it in your repo, then commit `.blocks/` and `AGENTS.md`. Everyone who clones
 ```bash
 npx caveman-blocks scan               # what your agents retyped this month. Script text never leaves your machine
 npx caveman-blocks add json-peek      # copy a first-party block in. You own it now
-npx caveman-blocks hooks install      # once per machine: hints in Claude Code, Codex, Cursor and OpenCode
+npx caveman-blocks hooks install      # once per machine: hints in Claude Code, Codex, Cursor, OpenCode and pi
 claude plugin marketplace add caveman-ai/blocks && claude plugin install caveman-blocks@caveman-blocks   # Claude Code, as a plugin
 codex plugin marketplace add caveman-ai/blocks && codex plugin add caveman-blocks@caveman-blocks         # Codex, as a plugin
 ```

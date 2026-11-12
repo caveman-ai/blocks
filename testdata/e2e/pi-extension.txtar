@@ -1,0 +1,53 @@
+# The pi extension: hooks install writes it with the binary baked in; driven under node with a fake
+# pi.on, a bash call that matches a block gets the hint appended to its result, and other calls and
+# other tools are left alone. The pre phase decides and the post phase replays it from cache/.
+[!exec:python3] skip 'python3 is not on PATH'
+[!exec:node] skip 'node is not on PATH'
+env HOME=$WORK/home XDG_STATE_HOME=$WORK/state
+
+exec git init -q repo
+cd repo
+exec caveman-blocks init
+exec caveman-blocks add json-peek
+exec caveman-blocks hooks install --harness pi
+stdout '^pi: installed in ~/.pi/agent/extensions/caveman-blocks.js$'
+exists $WORK/home/.pi/agent/extensions/caveman-blocks.js
+grep '^// .*/caveman-blocks hook --harness generic$' $WORK/home/.pi/agent/extensions/caveman-blocks.js
+
+exec node ../drive.mjs $WORK/home/.pi/agent/extensions/caveman-blocks.js
+stdout '^matched: 1 rows\n\nBlocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>$'
+stdout '^plain: ok$'
+stdout '^other: file$'
+
+exec caveman-blocks hooks uninstall --harness pi
+stdout '^pi: removed from ~/.pi/agent/extensions/caveman-blocks.js$'
+! exists $WORK/home/.pi/agent/extensions/caveman-blocks.js
+
+# Without the binary the extension changes nothing and does not throw.
+exec caveman-blocks hooks install --harness pi
+rm $WORK/home/.local/share/caveman-blocks/bin/caveman-blocks
+env NOPATH=1
+exec node ../drive.mjs $WORK/home/.pi/agent/extensions/caveman-blocks.js
+stdout '^matched: 1 rows$'
+
+-- drive.mjs --
+// Plays pi: one extension instance, a tool_call and a tool_result per call, cwd the repo.
+import { copyFileSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+const mjs = join(mkdtempSync(join(tmpdir(), "pi-ext-")), "caveman-blocks.mjs"); // pi loads the .js as ESM; node wants the .mjs name
+copyFileSync(process.argv[2], mjs);
+if (process.env.NOPATH) process.env.PATH = ""; // the hook binary is nowhere
+const handlers = {};
+(await import(mjs)).default({ on: (name, fn) => (handlers[name] = fn) });
+const ctx = { cwd: process.cwd(), sessionManager: { getSessionId: () => "e2e" } };
+const run = async (toolName, toolCallId, command, text) => {
+  const input = { command };
+  await handlers.tool_call({ toolName, toolCallId, input }, ctx);
+  const content = [{ type: "text", text }];
+  const patch = await handlers.tool_result({ toolName, toolCallId, input, content, isError: false }, ctx);
+  return (patch?.content ?? content).map((c) => c.text).join("");
+};
+console.log("matched: " + await run("bash", "call_1|fc_1", "python3 - <<'EOF'\nimport json\nd=json.load(open('x.json'))\nprint(d.keys())\nEOF", "1 rows"));
+console.log("plain: " + await run("bash", "call_2|fc_2", "ls", "ok"));
+console.log("other: " + await run("read", "call_3|fc_3", "python3 - <<'EOF'\nimport json\nd=json.load(open('x.json'))\nEOF", "file"));

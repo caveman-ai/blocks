@@ -18,6 +18,7 @@ func init() {
 	if filepath.Base(os.Args[0]) != "caveman-blocks" {
 		os.Unsetenv("CLAUDE_CONFIG_DIR")
 		os.Unsetenv("CODEX_HOME")
+		os.Unsetenv("PI_CODING_AGENT_DIR")
 	}
 }
 

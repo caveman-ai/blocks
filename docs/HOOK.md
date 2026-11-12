@@ -130,9 +130,9 @@ resolves.
 ## Delivery of the hint
 
 Claude Code and Codex accept `additionalContext` on an allowed pre-run call and deliver it alongside
-the tool result. Cursor, Copilot and Gemini have no context field on their pre-run event, only on the
+the tool result. Cursor, Copilot, Gemini and pi have no context field on their pre-run event, only on the
 post-run one. The hint arrives at the same moment on every harness, with the tool result. On the latter
-three the adapter registers a second, post-run event that replays the pre-run decision from
+four the adapter registers a second, post-run event that replays the pre-run decision from
 `cache/` keyed by `CallID`, or by `hash(Session, Cwd, Command)` when the harness gives no id. Rule 2's
 dedupe returns the cached decision rather than an empty one, so whichever of two loaded hook
 configurations runs first, the post-run event finds a hint to deliver. Codex's `tool_input.command`
@@ -151,6 +151,7 @@ Adapters are dialect plus profile; see [INTEGRATION.md](INTEGRATION.md).
 | Copilot CLI | `preToolUse`, tool `bash` | none | `postToolUse` → `additionalContext` | `~/.copilot/hooks/blocks.json` | 2 | Non-zero exit on pre denies. Always exit 0. `timeoutSec: 5`. |
 | Gemini CLI | `BeforeTool`, matcher `run_shell_command` | none | `AfterTool` → `additionalContext` | `~/.gemini/settings.json` | 2 | `timeout` in milliseconds: `5000`. |
 | OpenCode | `tool.execute.before`, tool `bash` | none | `tool.execute.after` → appended to `output` | `~/.config/opencode/plugins/caveman-blocks.js` | 1 | A plugin file of ours, written whole with the binary path baked in; speaks the generic protocol. Removed only when its first line is our marker. |
+| pi | `tool_call`, tool `bash` | none | `tool_result` → hint appended to `content` | `~/.pi/agent/extensions/caveman-blocks.js` | 1 | An extension file of ours, written whole with the binary path baked in; speaks the generic protocol, post phase replays by `toolCallId`. `PI_CODING_AGENT_DIR` moves the directory. Removed only when its first line is our marker. |
 | Amp, Cline | plugin APIs | | | | later | Passive layer only; optional shims under `integrations/`. |
 
 `hooks install` never touches project-level hook files. `hooks status` shows which harnesses are

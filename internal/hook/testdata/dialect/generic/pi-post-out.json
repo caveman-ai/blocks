@@ -1,0 +1,6 @@
+{
+  "protocol": 1,
+  "action": "allow",
+  "reason": "",
+  "hint": "Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path <path>"
+}

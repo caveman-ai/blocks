@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "phase": "pre",
+  "harness": "pi",
+  "session": "019e0f3a-7c1d",
+  "call_id": "call_Zx81Qp|fc_0a9e",
+  "cwd": "/repo",
+  "command": "python3 - <<'EOF'\nimport json\nprint(json.load(open('x.json')))\nEOF"
+}
