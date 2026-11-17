@@ -41,4 +41,4 @@ caveman-blocks doctor             # binary, hooks, trust notes, python, sync sta
 ```
 
 If `caveman-blocks` is missing, the hook answers nothing and the session continues. Install from
-https://github.com/caveman-ai/blocks/releases or with `npx caveman-blocks`.
+https://github.com/caveman-ai/blocks/releases.

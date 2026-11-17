@@ -26,14 +26,14 @@ Code mode by **[Cloudflare](https://blog.cloudflare.com/code-mode/)** · Script 
 ---
 
 <table>
-<tr><th width="50%">Normal agent · writes 101 tokens of script</th><th width="50%">🪨 Blocks agent · 21 tokens</th></tr>
+<tr><th width="50%">Normal agent · writes 96 tokens of script</th><th width="50%">🪨 Blocks agent · 16 tokens</th></tr>
 <tr>
 <td valign="top">
 
 ```bash
 python3 - <<'EOF'
 import json
-ops=json.load(open('cloud/agent-surface/generated/operations.json'))
+ops=json.load(open('api.github.com.json'))
 print(type(ops), (list(ops.keys())[:5] if isinstance(ops,dict) else len(ops)))
 items = ops['operations'] if isinstance(ops,dict) and 'operations' in ops else ops
 print(json.dumps(items[0] if isinstance(items,list) else list(items.items())[0], indent=1)[:800])
@@ -44,21 +44,21 @@ EOF
 <td valign="top">
 
 ```bash
-caveman-blocks run json-peek --path cloud/agent-surface/generated/operations.json
+caveman-blocks run json-peek --path api.github.com.json
 ```
 
 ```json
-{"kind": "object", "keys": ["schema_version", "contract_sha256",
- "operations", "exclusions", "operations[].id", … 15 more],
- "rows": 1, "sample": {"schema_version": 1, …}, "truncated": true}
+{"kind": "object", "keys": ["openapi", "info", "tags", "servers",
+ "externalDocs", "paths", … 14 more],
+ "rows": 1, "sample": {"openapi": "3.0.3", …}, "truncated": true}
 ```
 
 </td>
 </tr></table>
 
-**Same question. 101 token become 21. Every session after, still 21.**
+**Same question. 96 token become 16. Every session after, still 16.**
 
-<sub>A real script from a Claude Code transcript, run again on the same 1.4 MB file (251,893 tokens). Answers trimmed here; in full they are 236 and 227 tokens. The heredoc's <code>[:800]</code> cut its answer off mid-object; the block returned all 20 keys. Token counts: tiktoken o200k. <a href="docs/research/readme-numbers-2026-10-04.md#the-demo-a-real-heredoc-against-json-peek">Method</a></sub>
+<sub>A real script from a Claude Code transcript, pointed at a public file: GitHub's REST API description (14.3 MB, 2,745,352 tokens). Answers trimmed here; in full they are 34 and 287 tokens. The script printed the first key and stopped; the block returned 20 keys and a sample of every top-level field. Token counts: tiktoken o200k. <a href="docs/research/readme-numbers-2026-10-04.md#the-demo-a-real-heredoc-against-json-peek">Method</a></sub>
 
 ## How it works
 
@@ -79,20 +79,23 @@ One hook on the shell tool watches for heredocs. One a block covers gets a singl
 
 ## Install
 
+Pre-release: <code>v0.1.0-rc.5</code> binaries for macOS, Linux and Windows are on [Releases](https://github.com/caveman-ai/blocks/releases/tag/v0.1.0-rc.5). Not on npm yet. On macOS or Linux, this script downloads the release and checks its checksum:
+
 ```bash
-npx caveman-blocks init
+curl -fsSL https://raw.githubusercontent.com/caveman-ai/blocks/main/install.sh | VERSION=v0.1.0-rc.5 sh
+caveman-blocks init
 ```
 
-Run it in your repo, then commit `.blocks/` and `AGENTS.md`. Everyone who clones it gets the blocks. One rock. That it.<br>
-<sub>Pre-release: <code>v0.1.0-rc.1</code> binaries are on <a href="https://github.com/caveman-ai/blocks/releases">Releases</a>. npx, Homebrew and <code>curl | sh</code> go live with <code>v0.1.0</code>.</sub>
+Run `init` in your repo, then commit `.blocks/` and `AGENTS.md`. Everyone who clones it gets the blocks. One rock. That it.<br>
+<sub>npx and Homebrew go live with <code>v0.1.0</code>.</sub>
 
 <details>
 <summary><strong>More</strong>: see your waste first, add blocks, hints in your agent, plugins, CI, uninstall</summary>
 
 ```bash
-npx caveman-blocks scan               # what your agents retyped this month. Script text never leaves your machine
-npx caveman-blocks add json-peek      # copy a first-party block in. You own it now
-npx caveman-blocks hooks install      # once per machine: hints in Claude Code, Codex, Cursor, OpenCode and pi
+caveman-blocks scan               # what your agents retyped this month. Script text never leaves your machine
+caveman-blocks add json-peek      # copy a first-party block in. You own it now
+caveman-blocks hooks install      # once per machine: hints in Claude Code, Codex, Cursor, OpenCode and pi
 claude plugin marketplace add caveman-ai/blocks && claude plugin install caveman-blocks@caveman-blocks   # Claude Code, as a plugin
 codex plugin marketplace add caveman-ai/blocks && codex plugin add caveman-blocks@caveman-blocks         # Codex, as a plugin
 ```
@@ -115,21 +118,21 @@ Add the [CI step](docs/CI.md) so a pull request can't ship a broken block. Chang
 In one week, agents on one machine wrote near-duplicates of a single script 394 times, across 32 sessions:
 
 ```text
-$ npx caveman-blocks scan --since 7d
-  394x  import json;r=json.load(open('tests/flowbook/out/report.jso…  ~3 lines  32 sessions  covered by: json-peek (add)
+$ caveman-blocks scan --since 7d
+  394x  import json;r=json.load(open('[path]/report.jso…  ~3 lines  32 sessions  covered by: json-peek (add)
   225x  import sys,json; d=json.load(sys.stdin); [print(r['type'], …  ~1 lines  37 sessions  covered by: json-peek (add)
   … 1853 more shapes
 Measured: 94407 shell commands, 11726 inline Python scripts, 1855 shapes. Not grouped: 6331 edits, 3 scripts without a shape.
 ```
 
-<sub>One heavy user, mostly Caveman repos. Over two months it was 30,221 scripts: half were file edits, which are never captured, and 3% took a parameter. <a href="docs/research/transcript-scan-2026-10-03.md">Study</a> · <a href="docs/research/readme-numbers-2026-10-04.md#one-week-of-scripts-caveman-blocks-scan---since-7d">This run</a></sub>
+<sub>One heavy user, mostly Caveman repos. Paths redacted. Over two months it was 30,221 scripts: half were file edits, which are never captured, and 3% took a parameter. <a href="docs/research/transcript-scan-2026-10-03.md">Study</a> · <a href="docs/research/readme-numbers-2026-10-04.md#one-week-of-scripts-caveman-blocks-scan---since-7d">This run</a></sub>
 
 ### Blocks against what agents type now
 
 | Input | Raw | What agents type now | Block |
 |---|---:|---:|---:|
 | `go test -v ./...`, 326 tests | 10,561 | 397 · `\| tail -20` | **76** · `test-summary` |
-| 1.4 MB JSON file | 251,893 | 236 · their own heredoc | **227** · `json-peek` |
+| 14.3 MB JSON file | 2,745,352 | **34** · the same heredoc, first key only | 287 · `json-peek` |
 | 366-line Go file | 3,111 | **250** · `grep -n "^func \|^type "` | 489 · `grep-defs` |
 
 <sub>Tokens, tiktoken o200k. <code>grep-defs</code> loses to a bare grep: it labels every definition with file, kind, name and line. Not measured yet: how often agents follow a hint, and whole sessions. That's the first <a href="docs/ROADMAP.md">dogfood gate</a>. <a href="docs/research/readme-numbers-2026-10-04.md#blocks-against-what-agents-type-now">Method</a></sub>

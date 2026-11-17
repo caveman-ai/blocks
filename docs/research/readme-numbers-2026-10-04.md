@@ -5,12 +5,12 @@ Binary: `caveman-blocks` built from `9a8f341`. Go 1.26.1, macOS arm64.
 
 ## One week of scripts: `caveman-blocks scan --since 7d`
 
-The author's machine, run 2026-10-04. The first five of the 20 rows printed, then the summary, verbatim:
+The author's machine, run 2026-10-04. The first five of the 20 rows printed, then the summary, verbatim except that file paths are redacted as `[path]`:
 
 ```text
-  394x  import json;r=json.load(open('tests/flowbook/out/report.jso…  ~3 lines  32 sessions  covered by: json-peek (add)
+  394x  import json;r=json.load(open('[path]/report.jso…  ~3 lines  32 sessions  covered by: json-peek (add)
   225x  import sys,json; d=json.load(sys.stdin); [print(r['type'], …  ~1 lines  37 sessions  covered by: json-peek (add)
-  222x  import json;d=json.load(open('public/shared/contracts/schem…  ~6 lines  25 sessions  covered by: json-peek (add)
+  222x  import json;d=json.load(open('[path]/schem…  ~6 lines  25 sessions  covered by: json-peek (add)
   189x  import json; for f in ['getting-started','onboarding-connec…  ~4 lines  24 sessions  covered by: json-peek (add)
   144x  import json; m=json.load(open('model.json')); bad=0; n=0; s…  ~7 lines  21 sessions  covered by: json-peek (add)
   … 1835 more shapes
@@ -24,17 +24,20 @@ peeking at it, so `json-peek` would hint on it but not answer it; the README doe
 
 ## The demo: a real heredoc against `json-peek`
 
-The script is verbatim from a Claude Code transcript (`Caveman-Cloud`, worktree `repo-review`), with its
-leading `cd … &&` dropped. Both sides ran on the same file, `cloud/agent-surface/generated/operations.json`
-at `Caveman-Cloud@8d692bbea`: 1,392,195 bytes, 251,893 tokens.
+The script is verbatim from a Claude Code transcript, with its leading `cd … &&` dropped and its file
+path changed to a public file. Rerun 2026-11-17 with `caveman-blocks` built from `main`. Both sides ran on
+GitHub's REST API description, `descriptions/api.github.com/api.github.com.json` in
+[github/rest-api-description](https://github.com/github/rest-api-description) at `c9c95fe34c`:
+14,275,550 bytes, 2,745,352 tokens.
 
 | | Agent's heredoc | `caveman-blocks run json-peek --path …` |
 |---|---:|---:|
-| What the agent writes | 101 tokens | 21 tokens |
-| What comes back | 236 tokens | 227 tokens |
+| What the agent writes | 96 tokens | 16 tokens |
+| What comes back | 34 tokens | 287 tokens |
 
-The heredoc's `[:800]` cuts its answer off inside the first operation (it ends at `"output_schema":`).
-`json-peek` returns 20 keys, including the field names of every `operations[]` and `exclusions[]` entry.
+The file is an object without an `operations` key, so the heredoc prints the first five top-level keys
+and the first key-value pair (`"openapi": "3.0.3"`) and stops. `json-peek` returns 20 keys and a
+truncated sample of every top-level field.
 
 ## Blocks against what agents type now
 
@@ -44,7 +47,7 @@ Run in a clone of this repo at `9a8f341` with the blocks added.
 |---|---:|---:|---:|
 | `go test -v ./...`, 687 lines, 326 tests passing | 10,561 | 397 (`go test ./... 2>&1 \| tail -20`) | 76 (`test-summary --cmd "go test -v ./..."`) |
 | `internal/hook/engine.go`, 366 lines | 3,111 | 250 (`grep -n "^func \|^type "`, 20 lines) | 489 (`grep-defs --path …`) |
-| `operations.json` above | 251,893 | 236 (the heredoc's output) | 227 (`json-peek`) |
+| `api.github.com.json` above | 2,745,352 | 34 (the heredoc's output) | 287 (`json-peek`) |
 
 `grep-defs` loses to a bare grep: it adds a file, kind, name and line key to every definition and also
 returns constants.

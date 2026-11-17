@@ -6,7 +6,7 @@ REPO="caveman-ai/blocks"
 BIN_DIR=${BIN_DIR:-"$HOME/.local/bin"}
 os=$(uname -s | tr '[:upper:]' '[:lower:]'); arch=$(uname -m)
 case $arch in x86_64|amd64) arch=amd64;; arm64|aarch64) arch=arm64;; *) echo "unsupported arch $arch" >&2; exit 1;; esac
-case $os in darwin|linux) ;; *) echo "unsupported os $os; on Windows use npx caveman-blocks" >&2; exit 1;; esac
+case $os in darwin|linux) ;; *) echo "unsupported os $os; on Windows download the zip from GitHub releases" >&2; exit 1;; esac
 if [ -z "${VERSION:-}" ]; then
   VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
 fi
