@@ -20,7 +20,7 @@ never a pass.
 - No model calls in the CLI. No network code outside `internal/registry`, and `net/http` stays out of the binary (hook budget).
 - Telemetry sends counts only, through the system `curl`, exactly as [docs/TELEMETRY.md](docs/TELEMETRY.md) lists. A new event field changes that contract first. Never a free-text field.
 - Counted numbers are labelled measured. Never print a saving in dollars or percent.
-- Scoped conventional commits. PRs to `main`. `AGENTS.md` is the only instruction file; no `CLAUDE.md`.
+- Scoped conventional commits. PRs to `main`. `CLAUDE.md` is a symlink to `AGENTS.md`.
 
 <!-- caveman-blocks:start -->
 BLOCKS. Scripts in this repo are reusable blocks in .blocks/. Rules:
