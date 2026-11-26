@@ -21,6 +21,7 @@ never a pass.
 - Telemetry sends counts only, through the system `curl`, exactly as [docs/TELEMETRY.md](docs/TELEMETRY.md) lists. A new event field changes that contract first. Never a free-text field.
 - Counted numbers are labelled measured. Never print a saving in dollars or percent.
 - Scoped conventional commits. PRs to `main`. `CLAUDE.md` is a symlink to `AGENTS.md`.
+- Work in a clean branch or worktree off `origin/main` (never commit directly to `main`); stage explicit paths, run the checks above, open a PR, and squash-merge on green CI.
 
 <!-- caveman-blocks:start -->
 BLOCKS. Scripts in this repo are reusable blocks in .blocks/. Rules:
