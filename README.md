@@ -1,32 +1,17 @@
-<div align="center">
-
-<a href="https://github.com/caveman-ai/blocks"><img src="docs/assets/banner.png" alt="Caveman / Blocks. The word BLOCKS in solid pixel letters with a double-line shadow, the Caveman rock as the O. Why many script when few do trick. Agent write same script every session, throw it away, write it again. Blocks carve it once, keep it in your repo and check it every PR. Say this to shell: npx caveman-blocks scan. Works with Claude Code, Codex, Cursor and any AGENTS.md agent" width="880"></a>
+<a href="https://github.com/caveman-ai/blocks"><img src="docs/assets/banner.png" alt="Caveman Blocks. Why many script when few do trick." width="880"></a>
 
 # why many script when few do trick
 
-**skills.sh for code mode. Agent write same script every session, throw it away, write it again. Blocks keep it in your repo, check it every PR, hand it back.**
+**One developer's agents wrote the same little JSON inspector 394 times in a week. The transcripts told on them.**
 
-<a href="https://github.com/caveman-ai/blocks/stargazers"><img src="https://img.shields.io/github/stars/caveman-ai/blocks?style=flat-square&color=111&label=stars" alt="GitHub stars"></a> <a href="#install"><img src="https://img.shields.io/badge/works_with-Claude_Code_·_Codex_·_Cursor-111?style=flat-square" alt="Claude Code, Codex, Cursor"></a> <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-111?style=flat-square" alt="Apache-2.0"></a>
+Code mode works. An agent that writes a short script instead of calling tool after tool spends far fewer tokens; [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) took one task from 150,000 tokens to 2,000. Then the session ends, the script goes with it, and tomorrow the agent writes it again from memory, slightly different. [Purdue](https://arxiv.org/abs/2609.30725) put that habit at up to 9.57% of task cost.
 
-<table>
-<tr>
-<td align="center" width="33%"><h3>394×</h3>one script, rewritten in a week<br><sub>32 sessions, one developer, <a href="#one-script-written-394-times-in-a-week">counted by <code>scan</code></a></sub></td>
-<td align="center" width="33%"><h3>up to 9.57%</h3>of task cost spent regenerating scripts<br><sub><a href="https://arxiv.org/abs/2609.30725">Purdue</a>, arXiv, Sep 2026</sub></td>
-<td align="center" width="33%"><h3>397 → 76 tokens</h3>for one Go test run<br><sub><code>| tail -20</code> vs <a href="#blocks-against-what-agents-type-now"><code>test-summary</code></a>, this repo's 326 tests</sub></td>
-</tr>
-</table>
+Blocks keeps the script. A block is a plain Python file in `.blocks/`, committed with your code and listed by name in `AGENTS.md`. It proves it still works by running its own example. When your agent starts typing a heredoc that a block already covers, a shell hook slips it one line: use the block. The command still runs as written, and running a block makes zero LLM calls.
 
-*"Once an agent develops working code for a task, it can save that implementation for future use."* **[Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp)**<br>
-Code mode by **[Cloudflare](https://blog.cloudflare.com/code-mode/)** · Script waste measured by **[Purdue](https://arxiv.org/abs/2609.30725)** · From the makers of **[Caveman](https://github.com/JuliusBrussee/caveman)**, #1 on [Hacker News](https://news.ycombinator.com/item?id=47647455)
-
-**[How it works](#how-it-works) · [Install](#install) · [The numbers](#the-numbers) · [What you get](#what-you-get)**
-
-</div>
-
----
+## One heredoc, two ways
 
 <table>
-<tr><th width="50%">Normal agent · writes 96 tokens of script</th><th width="50%">🪨 Blocks agent · 16 tokens</th></tr>
+<tr><th width="50%">Agent writes a script · 96 tokens</th><th width="50%">Agent calls a block · 16 tokens</th></tr>
 <tr>
 <td valign="top">
 
@@ -47,75 +32,52 @@ EOF
 caveman-blocks run json-peek --path api.github.com.json
 ```
 
-```json
+```text
 {"kind": "object", "keys": ["openapi", "info", "tags", "servers",
  "externalDocs", "paths", … 14 more],
  "rows": 1, "sample": {"openapi": "3.0.3", …}, "truncated": true}
 ```
 
 </td>
-</tr></table>
+</tr>
+</table>
 
-**Same question. 96 token become 16. Every session after, still 16.**
-
-<sub>A real script from a Claude Code transcript, pointed at a public file: GitHub's REST API description (14.3 MB, 2,745,352 tokens). Answers trimmed here; in full they are 34 and 287 tokens. The script printed the first key and stopped; the block returned 20 keys and a sample of every top-level field. Token counts: tiktoken o200k. <a href="docs/research/readme-numbers-2026-10-04.md#the-demo-a-real-heredoc-against-json-peek">Method</a></sub>
-
-## How it works
-
-`AGENTS.md` says how. A block does it. `init` writes eight rules and a one-line-per-block index into your `AGENTS.md`:
-
-| Rule | What it means |
-|---|---|
-| **Index first** | A block fits: run it. Almost fits: add a param to it |
-| **Twice means block** | A script you would run twice, or one over ~10 lines, becomes a block. Not a heredoc, not a `/tmp` file |
-| **Inputs are params** | No hardcoded paths, ids, ports or dates |
-| **Answer, not data** | One small JSON object. Filter, count and truncate in code. The runner cuts anything over 2 KB |
-| **Fails loud** | Exit 0 on success. Non-zero with `{"error": ...}` on failure |
-| **Safe to re-run** | Idempotent, no prompts, cleans up after itself |
-| **Header first** | Name, summary, params, effects, example. `caveman-blocks lint` checks it |
-| **Compose** | Call other blocks with `caveman-blocks run`. Never copy their code |
-
-One hook on the shell tool watches for heredocs. One a block covers gets a single line back: `Blocks: json-peek covers this. Next time: caveman-blocks run json-peek --path …`. A new one becomes a candidate the agent can promote into a block. The hook never denies or rewrites a command. `verify` runs every block's own example and stamps a hash into the file, and CI re-checks it on every pull request. A broken block drops out of the index. Full format: [docs/FORMAT.md](docs/FORMAT.md).
+That heredoc is real, lifted from a Claude Code transcript, and both commands ran against GitHub's 14.3 MB REST API description. The agent typed 16 tokens instead of 96. It also got more back: 287 tokens against the heredoc's 34. The heredoc printed a few keys and one entry, then quit. `json-peek` returned all 20 top-level keys with a sample of each (trimmed above). Less to type, more to read. [Full outputs and token counts](docs/research/readme-numbers-2026-10-04.md#the-demo-a-real-heredoc-against-json-peek)
 
 ## Install
 
-Pre-release: <code>v0.1.0-rc.5</code> binaries for macOS, Linux and Windows are on [Releases](https://github.com/caveman-ai/blocks/releases/tag/v0.1.0-rc.5). Not on npm yet. On macOS or Linux, this script downloads the release and checks its checksum:
+Blocks is in prerelease: [v0.1.0-rc.5](https://github.com/caveman-ai/blocks/releases/tag/v0.1.0-rc.5). It isn't on npm yet, so use the installer or a release archive. Blocks themselves need Python 3.10 or later.
+
+On macOS or Linux, the pinned installer verifies the binary's checksum and drops it in `~/.local/bin` (add that to your `PATH` if it isn't there). On Windows, grab the archive from the release page.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/caveman-ai/blocks/main/install.sh | VERSION=v0.1.0-rc.5 sh
+curl -fsSL https://raw.githubusercontent.com/caveman-ai/blocks/v0.1.0-rc.5/install.sh | VERSION=v0.1.0-rc.5 sh
+caveman-blocks hooks install
+```
+
+The hook installs for Claude Code, Codex, Cursor, OpenCode and pi. Codex asks you to trust each new hook once: open `/hooks` and approve it. The Codex and Cursor hooks haven't run in a live session yet. [Hook support and setup](docs/INTEGRATION.md)
+
+Then, inside a Git repo:
+
+```bash
 caveman-blocks init
+caveman-blocks add json-peek
+caveman-blocks run json-peek --path path/to/your-file.json
 ```
 
-Run `init` in your repo, then commit `.blocks/` and `AGENTS.md`. Everyone who clones it gets the blocks. One rock. That it.<br>
-<sub>npx and Homebrew go live with <code>v0.1.0</code>.</sub>
+Commit `.blocks/` and the generated section of `AGENTS.md`, and everyone who clones the repo gets the same blocks. Any agent that reads `AGENTS.md` picks up the rules and the block index, hook or no hook. Changed your mind: `caveman-blocks hooks uninstall` removes only the entries it added.
 
-<details>
-<summary><strong>More</strong>: see your waste first, add blocks, hints in your agent, plugins, CI, uninstall</summary>
+## Keep the script this time
 
-```bash
-caveman-blocks scan               # what your agents retyped this month. Script text never leaves your machine
-caveman-blocks add json-peek      # copy a first-party block in. You own it now
-caveman-blocks hooks install      # once per machine: hints in Claude Code, Codex, Cursor, OpenCode and pi
-claude plugin marketplace add caveman-ai/blocks && claude plugin install caveman-blocks@caveman-blocks   # Claude Code, as a plugin
-codex plugin marketplace add caveman-ai/blocks && codex plugin add caveman-blocks@caveman-blocks         # Codex, as a plugin
-```
+`init` writes eight short rules into `AGENTS.md`. In plain terms: check the index before writing anything, and if a block almost fits, give it another parameter instead of forking it. A script you'd run twice, or one longer than about ten lines, belongs in `.blocks/`. Inputs come in as flags, never as hardcoded paths, ports or dates. The header declares the block's effects, its expected output keys and a runnable example. A block prints one small JSON object (the runner cuts anything over 2 KB), exits nonzero with an `error` field when it fails, and is safe to rerun without prompts. Blocks call each other by name and never copy each other's code.
 
-Add the [CI step](docs/CI.md) so a pull request can't ship a broken block. Changed your mind: `caveman-blocks hooks uninstall` removes only the entries it added. Something off: `caveman-blocks doctor`.
+You don't have to guess which scripts deserve it. `caveman-blocks scan --since 7d` ranks the shapes your agents keep retyping, straight from transcripts on disk. `promote` hands the agent a brief for turning one of them into a block.
 
-</details>
+When the block is written, run `caveman-blocks lint .blocks`, `caveman-blocks verify --all` and `caveman-blocks sync`. `verify` runs each example and stamps a hash of the script and its fixtures into the file. Touch either one and the stamp stops matching, so the block drops out of the index until someone verifies it again. Copy the [CI step](docs/CI.md) and every pull request reruns the examples. CI lists a block as skipped when its effect isn't allowed or a tool it needs is missing on the runner.
 
-## The numbers
+A block is ordinary code, with no model deciding what it prints. Review it like any script you pull into your repo. The runner checks declared effects and keeps path parameters inside the repo, but it has no sandbox, and `test-summary --cmd` runs your command with your permissions. [File format](docs/FORMAT.md) · [First-party blocks](blocks/README.md)
 
-| Who | Found |
-|---|---|
-| **[Purdue](https://arxiv.org/abs/2609.30725)** | Agents regenerating near-duplicate scripts: up to **68.00% of tasks** and **9.57% of task cost**. Seven behavioral principles cut cost 7.88–41.73% in six settings; synthesized skills helped in three of eight |
-| **[Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp)** | Agents writing code instead of calling tools: **150,000 tokens down to 2,000**. Working code can be saved for future use |
-| **[CUNY and Ohio State](https://arxiv.org/abs/2608.08453)** | **91.8% of 138,133** public `SKILL.md` files have at least one defect. Prose nobody runs rots |
-| **[Microsoft Research and UIUC](https://arxiv.org/abs/2608.11888)** | **62.6%** of the efficiency regressions skills cause come from too much procedure. So: eight short rules |
-
-### One script, written 394 times in a week
-
-In one week, agents on one machine wrote near-duplicates of a single script 394 times, across 32 sessions:
+## One script, written 394 times in a week
 
 ```text
 $ caveman-blocks scan --since 7d
@@ -125,55 +87,22 @@ $ caveman-blocks scan --since 7d
 Measured: 94407 shell commands, 11726 inline Python scripts, 1855 shapes. Not grouped: 6331 edits, 3 scripts without a shape.
 ```
 
-<sub>One heavy user, mostly Caveman repos. Paths redacted. Over two months it was 30,221 scripts: half were file edits, which are never captured, and 3% took a parameter. <a href="docs/research/transcript-scan-2026-10-03.md">Study</a> · <a href="docs/research/readme-numbers-2026-10-04.md#one-week-of-scripts-caveman-blocks-scan---since-7d">This run</a></sub>
+That is one heavy user on one machine, paths redacted. Your own transcripts are the ones worth scanning. [Scan method](docs/research/transcript-scan-2026-10-03.md)
 
 ### Blocks against what agents type now
 
-| Input | Raw | What agents type now | Block |
-|---|---:|---:|---:|
-| `go test -v ./...`, 326 tests | 10,561 | 397 · `\| tail -20` | **76** · `test-summary` |
-| 14.3 MB JSON file | 2,745,352 | **34** · the same heredoc, first key only | 287 · `json-peek` |
-| 366-line Go file | 3,111 | **250** · `grep -n "^func \|^type "` | 489 · `grep-defs` |
+| Input | What agents type now | Block output |
+|---|---:|---:|
+| Go test run, 326 tests | 397 tokens · `tail -20` | **76** · `test-summary` |
+| GitHub REST API JSON, 14.3 MB | **34** · the heredoc above | 287 · `json-peek` |
+| Go file, 366 lines | **250** · bare `grep -n` | 489 · `grep-defs` |
 
-<sub>Tokens, tiktoken o200k. <code>grep-defs</code> loses to a bare grep: it labels every definition with file, kind, name and line. Not measured yet: how often agents follow a hint, and whole sessions. That's the first <a href="docs/ROADMAP.md">dogfood gate</a>. <a href="docs/research/readme-numbers-2026-10-04.md#blocks-against-what-agents-type-now">Method</a></sub>
+Tokens the agent reads, counted with tiktoken o200k. The block wins one row and loses two. On the JSON it returns a fuller answer than the heredoc asked for; on the Go file it labels every definition with file, kind, name and line, and bare grep is cheaper. How often agents follow a hint, and what a whole session saves, are not measured yet. [Benchmark method](docs/research/readme-numbers-2026-10-04.md#blocks-against-what-agents-type-now)
 
-## What you get
+## What stays local
 
-| Command | What it does |
-|---|---|
-| `scan` | Your agents' repeated scripts, from transcripts already on disk |
-| `init` | Rules and index in `AGENTS.md`, `.blocks/` in the repo |
-| `add <name>` | A first-party block and its test data, copied in. Your code from then on |
-| `run <name>` | Run a block: effects checked, paths kept inside the repo, output capped at 2 KB |
-| `hooks install` | Hints in Claude Code, Codex and Cursor when a block covers what the agent is writing |
-| `promote` | The brief that turns a repeated script into a block |
-| `lint` · `verify` · `sync` | Check it, run its example and stamp it, rebuild the index. `--check` for CI |
-| `stats` | Scripts captured, hints followed, block calls. Counted, local |
-| `telemetry off` | Usage counts off for good. `status` shows what is on and why |
+The scan reads transcripts already on disk. Captured candidates are scrubbed of secrets and stored outside the repo.
 
-First-party blocks, Python standard library only: `json-peek` · `jsonl-stats` · `test-summary` · `first-error` · `wait-for` · `grep-defs` · `http-json` · `replace-in-file`. [What each returns](blocks/README.md). `export` wraps them as `SKILL.md` for agents that read skills.
+Usage telemetry is on by default, but only after the disclosure has been shown and the choice saved; a process with `CI` set sends nothing. It sends counts, public block names, a random install ID, OS and IP address. Script text, file paths, repo names, block inputs and outputs, and the names of blocks you wrote stay on your machine. Turn it off with `caveman-blocks telemetry off` or `DO_NOT_TRACK=1`. [Telemetry fields](docs/TELEMETRY.md) · [Trust boundary](docs/ARCHITECTURE.md)
 
-Not yet: Python only, no sandbox, and the Codex and Cursor hooks haven't run in a live session. Copilot CLI and Gemini CLI are next.
-
-## Privacy, license, cite
-
-Blocks is free. It stays free because we can show it gets used, so the CLI sends usage counts by default: commands run, hints shown and followed, block runs, a random install ID, OS and IP address. Never your scripts, file paths, repo names or the names of blocks you wrote. Turn it off for good with `caveman-blocks telemetry off`; `DO_NOT_TRACK=1` is honored too. [Everything that is sent](docs/TELEMETRY.md).
-
-No model calls. Blocks stay in your repo; captured scripts are scrubbed of secrets and kept outside it. [Trust boundary](docs/ARCHITECTURE.md).
-
-[Apache-2.0](./LICENSE). Fork it, ship it, put it in your monorepo. "Caveman" and the rock logo are trademarks; see [TRADEMARKS.md](TRADEMARKS.md).
-
-```bibtex
-@software{brussee2026blocks, author = {Brussee, Julius}, year = {2026},
-  title = {Caveman Blocks: why many script when few do trick}, url = {https://github.com/caveman-ai/blocks}}
-```
-
----
-
-<div align="center">
-
-🪨 **Blocks save your agent the retyping. Star cost zero. Fair trade.**
-
-<sub><a href="docs/THESIS.md">Thesis</a> · <a href="docs/FORMAT.md">Format</a> · <a href="docs/decisions/README.md">Decisions</a> · <a href="CONTRIBUTING.md">Contributing</a> · <a href="SECURITY.md">Security</a> · <a href="https://github.com/caveman-ai/blocks/issues">Issues</a></sub>
-
-</div>
+[Apache-2.0](./LICENSE) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
