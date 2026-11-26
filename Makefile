@@ -33,4 +33,4 @@ blocks-verify:
 	go run ./cmd/caveman-blocks verify --check --all --first-party --fixtures-root blocks/fixtures --blocks-dir blocks
 
 check-instructions:
-	test ! -e CLAUDE.md
+	test -L CLAUDE.md && test "$$(readlink CLAUDE.md)" = "AGENTS.md"
