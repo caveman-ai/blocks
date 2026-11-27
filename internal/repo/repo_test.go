@@ -10,14 +10,18 @@ import (
 	"testing"
 )
 
+func TestMain(m *testing.M) {
+	os.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	os.Exit(m.Run())
+}
+
 // gitRepo creates a git repository in a temp dir with hermetic git config.
 func gitRepo(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
 	}
-	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
-	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	dir := t.TempDir()
 	run(t, dir, "git", "init", "-q", "-b", "main")
 	return dir
@@ -52,6 +56,7 @@ func write(t *testing.T, path, content string) {
 }
 
 func TestFindRoot(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, ".blocks"), 0o755); err != nil {
 		t.Fatal(err)
@@ -82,6 +87,7 @@ func TestFindRoot(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	c, err := LoadConfig(root)
 	if err != nil || !reflect.DeepEqual(c, DefaultConfig()) {
@@ -107,6 +113,7 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestLoadConfigAt(t *testing.T) {
+	t.Parallel()
 	root := gitRepo(t)
 	commit(t, root, "empty")
 	c, err := LoadConfigAt(root, "HEAD")
@@ -174,6 +181,7 @@ func TestStateDir(t *testing.T) {
 }
 
 func TestBranches(t *testing.T) {
+	t.Parallel()
 	root := gitRepo(t)
 	commit(t, root, "one")
 	if got := DefaultBranch(root); got != "main" {
@@ -208,6 +216,7 @@ func TestBranches(t *testing.T) {
 }
 
 func TestInstructionFiles(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	write(t, filepath.Join(root, "GEMINI.md"), "x")
 	write(t, filepath.Join(root, "AGENTS.md"), "x")
@@ -217,6 +226,7 @@ func TestInstructionFiles(t *testing.T) {
 }
 
 func TestIsCachePath(t *testing.T) {
+	t.Parallel()
 	for p, want := range map[string]bool{
 		"/Users/a/.npm/_npx/abc/node_modules/.bin/caveman-blocks": true,
 		"/home/a/.npm/caveman-blocks":                             true,
@@ -256,6 +266,7 @@ func TestInstallBinary(t *testing.T) {
 }
 
 func TestListBlocksAndFixtures(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	write(t, filepath.Join(root, ".blocks", "b.py"), "")
 	write(t, filepath.Join(root, ".blocks", "a.py"), "")
@@ -293,6 +304,7 @@ func TestListBlocksAndFixtures(t *testing.T) {
 // TestLoadConfigAtSubdir: a .blocks/ in a monorepo subdirectory reads its own committed policy,
 // not one at the top level.
 func TestLoadConfigAtSubdir(t *testing.T) {
+	t.Parallel()
 	top := gitRepo(t)
 	write(t, filepath.Join(top, ".blocks", "config.toml"), "index_max = 3\n")
 	sub := filepath.Join(top, "svc")

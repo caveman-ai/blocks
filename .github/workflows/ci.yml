@@ -13,17 +13,17 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
       - run: make check-instructions
       - run: make lint
       - run: make test
       - run: make build
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
       - run: make blocks-test
-      - run: make blocks-verify
-      - run: go run ./cmd/caveman-blocks lint .blocks && go run ./cmd/caveman-blocks verify --check --all --policy-ref origin/main && go run ./cmd/caveman-blocks sync --check
+      - run: make blocks-verify CAVEMAN_BLOCKS_BIN="$PWD/bin/caveman-blocks"
+      - run: ./bin/caveman-blocks lint .blocks && ./bin/caveman-blocks verify --check --all --policy-ref origin/main && ./bin/caveman-blocks sync --check
       - run: make e2e
-      - run: make bench-hook
+      - run: make bench-hook CAVEMAN_BLOCKS_BIN="$PWD/bin/caveman-blocks"
   # The Go tests and make targets assume unix paths and sh; on Windows the binary is built, vetted and
   # driven through hooks install, status and uninstall in Git Bash, the shell Claude Code runs hooks in.
   windows:
@@ -33,8 +33,7 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
       - run: go vet ./...
-      - run: go test ./internal/hook/install ./internal/hook -run "TestMarker|TestProfile"
-      - run: go test ./internal/repo -run TestBinaryName
+      - run: go test ./internal/hook/install ./internal/hook ./internal/repo -run "TestMarker|TestProfile|TestBinaryName"
       - run: go build -o bin/caveman-blocks.exe ./cmd/caveman-blocks
       - run: scripts/smoke-hooks.sh "$PWD/bin/caveman-blocks.exe"
         shell: bash

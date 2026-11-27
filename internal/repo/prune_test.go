@@ -10,6 +10,7 @@ import (
 )
 
 func TestPrune(t *testing.T) {
+	t.Parallel()
 	state := t.TempDir()
 	now := time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
 	files := map[string]time.Duration{
@@ -67,6 +68,7 @@ func TestPrune(t *testing.T) {
 }
 
 func TestPruneCandidates(t *testing.T) {
+	t.Parallel()
 	state := t.TempDir()
 	dir := filepath.Join(state, "candidates")
 	if err := os.MkdirAll(dir, 0o700); err != nil {

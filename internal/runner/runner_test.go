@@ -38,6 +38,7 @@ func run(t *testing.T, root, state string, b *blockfile.Block, unverified bool, 
 }
 
 func TestRunJSON(t *testing.T) {
+	t.Parallel()
 	root, state := t.TempDir(), t.TempDir()
 	b := fakeBlock(t, root, "hello", `import json, os; print(json.dumps({"cwd": os.getcwd()}))`, blockfile.EffectRead)
 
@@ -64,6 +65,7 @@ func TestRunJSON(t *testing.T) {
 }
 
 func TestMarkUnverified(t *testing.T) {
+	t.Parallel()
 	for in, want := range map[string]string{
 		"{}\n":         `{"_unverified":true}` + "\n",
 		" { }":         ` {"_unverified":true }`,
@@ -81,6 +83,7 @@ func TestMarkUnverified(t *testing.T) {
 }
 
 func TestRunTruncates(t *testing.T) {
+	t.Parallel()
 	root, state := t.TempDir(), t.TempDir()
 	b := fakeBlock(t, root, "big", `import json; print(json.dumps({"x": "é" * 2600}, ensure_ascii=False))`, blockfile.EffectRead)
 
@@ -116,6 +119,7 @@ func TestRunTruncates(t *testing.T) {
 }
 
 func TestRunExitAndArgs(t *testing.T) {
+	t.Parallel()
 	root, state := t.TempDir(), t.TempDir()
 	b := fakeBlock(t, root, "fail", `import json, sys; print(json.dumps({"error": "boom", "args": sys.argv[1:]})); sys.exit(3)`,
 		blockfile.EffectRead, blockfile.Param{Name: "n", Type: "int"})
@@ -130,6 +134,7 @@ func TestRunExitAndArgs(t *testing.T) {
 }
 
 func TestEffectGate(t *testing.T) {
+	t.Parallel()
 	b := &blockfile.Block{Header: blockfile.Header{Name: "fetch", Effects: blockfile.EffectNetwork}}
 	_, err := Run(t.TempDir(), "", b, false, nil, nil, nil, nil)
 	var ee *EffectError
@@ -161,6 +166,7 @@ func TestEffectGate(t *testing.T) {
 }
 
 func TestCheckPaths(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	outside := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, "data"), 0o755); err != nil {
@@ -196,6 +202,7 @@ func TestCheckPaths(t *testing.T) {
 }
 
 func TestRequires(t *testing.T) {
+	t.Parallel()
 	b := &blockfile.Block{Header: blockfile.Header{Name: "r", Effects: blockfile.EffectExec,
 		Requires: []string{"definitely-not-a-binary-xyz"}}}
 	_, err := Run(t.TempDir(), "", b, false, nil, nil, nil, nil)

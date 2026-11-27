@@ -60,8 +60,10 @@ func hookCmd() *cobra.Command {
 //
 // ponytail: past hookMaxFiles files (sorted by name) a block's provenance no longer silences rule 9;
 // such a repo is far over index_max and sync already refuses it.
+// hookDeadline bounds one hook process (var so tests can shorten it).
+var hookDeadline = 2 * time.Second
+
 const (
-	hookDeadline = 2 * time.Second
 	hookMaxInput = 1 << 20
 	hookMaxFiles = 200
 )

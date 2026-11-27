@@ -20,6 +20,7 @@ import (
 )
 
 func TestPython310(t *testing.T) {
+	t.Parallel()
 	for out, want := range map[string]bool{
 		"Python 3.13.2\n": true, "Python 3.10.0+": true, "Python 4.0.0": true,
 		"Python 3.9.18": false, "Python 2.7.18": false, "": false, "garbage": false,
@@ -31,6 +32,7 @@ func TestPython310(t *testing.T) {
 }
 
 func TestRunEnv(t *testing.T) {
+	t.Parallel()
 	root, state := t.TempDir(), t.TempDir()
 	b := fakeBlock(t, root, "env", `import json, os, sys
 print(json.dumps({"safe": os.environ.get("PYTHONSAFEPATH"), "out": os.environ.get("BLOCKS_OUT"),
@@ -55,17 +57,48 @@ print(json.dumps({"safe": os.environ.get("PYTHONSAFEPATH"), "out": os.environ.ge
 	}
 }
 
+// triggerDeadlineCtx triggers context.DeadlineExceeded on demand once a subprocess is ready.
+type triggerDeadlineCtx struct {
+	context.Context
+	done chan struct{}
+}
+
+func (c *triggerDeadlineCtx) Done() <-chan struct{} { return c.done }
+
+func (c *triggerDeadlineCtx) Err() error {
+	select {
+	case <-c.done:
+		return context.DeadlineExceeded
+	default:
+		return c.Context.Err()
+	}
+}
+
 // TestExecKillsProcessGroup: on timeout the block and the children it spawned die, and Exec
 // returns promptly even though a grandchild holds stdout open.
 func TestExecKillsProcessGroup(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	pidFile := filepath.Join(root, "pid")
-	b := fakeBlock(t, root, "hang", fmt.Sprintf(`import subprocess, time
+	tmpPid := pidFile + ".tmp"
+	b := fakeBlock(t, root, "hang", fmt.Sprintf(`import os, subprocess, time
 p = subprocess.Popen(["sleep", "60"])
-open(%q, "w").write(str(p.pid))
-time.sleep(60)`, pidFile), blockfile.EffectExec)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+with open(%q, "w") as f:
+    f.write(str(p.pid))
+os.replace(%q, %q)
+time.sleep(60)`, tmpPid, tmpPid, pidFile), blockfile.EffectExec)
+	parent, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	ctx := &triggerDeadlineCtx{Context: parent, done: make(chan struct{})}
+	go func() {
+		defer close(ctx.done)
+		for parent.Err() == nil {
+			if _, err := os.Stat(pidFile); err == nil {
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}()
 	start := time.Now()
 	_, _, err := Exec(ctx, root, "", b, nil, nil, nil)
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -79,8 +112,8 @@ time.sleep(60)`, pidFile), blockfile.EffectExec)
 		t.Fatal(err)
 	}
 	pid, _ := strconv.Atoi(string(data))
-	for i := 0; i < 50 && syscall.Kill(pid, 0) == nil; i++ {
-		time.Sleep(20 * time.Millisecond)
+	for i := 0; i < 200 && syscall.Kill(pid, 0) == nil; i++ {
+		time.Sleep(5 * time.Millisecond)
 	}
 	if err := syscall.Kill(pid, 0); err == nil {
 		exec.Command("kill", "-9", strconv.Itoa(pid)).Run()
@@ -92,7 +125,7 @@ time.sleep(60)`, pidFile), blockfile.EffectExec)
 // stdout keeps its answer, and the child is killed.
 func TestExecChildHoldsStdout(t *testing.T) {
 	defer func(d time.Duration) { waitDelay = d }(waitDelay)
-	waitDelay = 300 * time.Millisecond
+	waitDelay = 50 * time.Millisecond
 	root := t.TempDir()
 	pidFile := filepath.Join(root, "pid")
 	b := fakeBlock(t, root, "bg", fmt.Sprintf(`import json, subprocess
@@ -108,7 +141,9 @@ print(json.dumps({"ok": True}), flush=True)`, pidFile), blockfile.EffectExec)
 		t.Fatal(err)
 	}
 	pid, _ := strconv.Atoi(string(data))
-	time.Sleep(100 * time.Millisecond) // SIGKILL delivery
+	for i := 0; i < 100 && syscall.Kill(pid, 0) == nil; i++ {
+		time.Sleep(5 * time.Millisecond)
+	}
 	if err := syscall.Kill(pid, 0); err == nil {
 		exec.Command("kill", "-9", strconv.Itoa(pid)).Run()
 		t.Errorf("child %d survived the run", pid)
