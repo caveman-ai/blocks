@@ -86,8 +86,8 @@ grep -count=1 '"event":"first_run"' payload.json
 i=0
 until grep -q '"event":"first_run"' "$CURL_PAYLOAD" 2>/dev/null; do
   i=$((i + 1))
-  [ "$i" -gt 100 ] && exit 1
-  sleep 0.1
+  [ "$i" -gt 500 ] && exit 1
+  sleep 0.02
 done
 -- bin/curl --
 #!/bin/sh

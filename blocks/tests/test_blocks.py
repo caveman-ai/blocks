@@ -9,9 +9,9 @@ import subprocess
 import sys
 import tempfile
 import threading
-import unittest
-
 import tomllib
+import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # blocks/
 FIXTURES = os.path.join(HERE, "fixtures")
@@ -75,24 +75,35 @@ class Blocks(unittest.TestCase):
 
     def test_examples(self):
         self.assertEqual(len(BLOCKS), 8, BLOCKS)
-        for name in BLOCKS:
+        heads = {name: header(name) for name in BLOCKS}
+
+        def check_block(name):
+            head = heads[name]
+            fixtures = os.path.join(FIXTURES, name)
+            args = [arg.replace("$FIXTURES", fixtures) for arg in head["example"]]
+            out_dir = os.path.join(self.out, name)
+            os.makedirs(out_dir, exist_ok=True)
+            example_res = run(name, args, out_dir)
+            help_res = run(name, ["--help"], out_dir)
+            return name, head, fixtures, example_res, help_res
+
+        with ThreadPoolExecutor(max_workers=len(BLOCKS)) as pool:
+            results = list(pool.map(check_block, BLOCKS))
+
+        for name, head, fixtures, result, help_res in results:
             with self.subTest(block=name):
-                head = header(name)
                 self.assertEqual(head["name"], name)
                 self.assertLessEqual(len(head["summary"]), 100)
                 self.assertIn(head["effects"], ("read", "write-workspace", "exec", "network"))
                 self.assertEqual(head["provenance"]["source"], f"registry:{name}@0.1.0")
                 self.assertNotIn("stamp", head)
-                fixtures = os.path.join(FIXTURES, name)
-                args = [arg.replace("$FIXTURES", fixtures) for arg in head["example"]]
-                result = run(name, args, self.out)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertLessEqual(len(result.stdout.encode()), 2048, result.stdout)
                 answer = json.loads(result.stdout)
                 self.assertIsInstance(answer, dict)
                 for key in head["returns"]["keys"]:
                     self.assertIn(key, answer)
-                self.assertEqual(run(name, ["--help"], self.out).returncode, 0)
+                self.assertEqual(help_res.returncode, 0)
                 size = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(fixtures) for f in fs)
                 self.assertLessEqual(size, 64 * 1024)
 
@@ -118,9 +129,13 @@ class Blocks(unittest.TestCase):
         outside = os.path.join(self.out, "x.json")
         with open(outside, "w", encoding="utf-8") as fh:
             fh.write("{}")
-        for url in (f"file://{outside}", "file:///etc/hosts", f"file://{FIXTURES}/../../../etc/hosts"):
+        urls = (f"file://{outside}", "file:///etc/hosts", f"file://{FIXTURES}/../../../etc/hosts")
+        with ThreadPoolExecutor(max_workers=len(urls)) as pool:
+            results = list(pool.map(lambda u: (u, run("http-json", ["--url", u], self.out)), urls))
+        for url, result in results:
             with self.subTest(url=url):
-                self.assertEqual(self.answer("http-json", ["--url", url], code=1), {"error": "file URL must resolve inside the repo root"})
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertEqual(json.loads(result.stdout), {"error": "file URL must resolve inside the repo root"})
 
     def test_json_peek_jsonl(self):
         answer = self.answer("json-peek", ["--path", os.path.join(FIXTURES, "json-peek", "events.jsonl")])
@@ -166,7 +181,7 @@ class Blocks(unittest.TestCase):
     def test_http_json_over_http(self):
         handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=os.path.join(FIXTURES, "http-json"))
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         base = f"http://127.0.0.1:{server.server_address[1]}"

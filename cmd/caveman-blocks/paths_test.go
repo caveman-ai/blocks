@@ -54,6 +54,7 @@ func symlink(t *testing.T, target, link string) {
 }
 
 func TestSyncRefusesSymlinkedAgentsMD(t *testing.T) {
+	t.Parallel()
 	root, outside := symlinkRepo(t)
 	symlink(t, "../outside/file", filepath.Join(root, "AGENTS.md"))
 	before := snapshot(t, outside)
@@ -68,6 +69,7 @@ func TestSyncRefusesSymlinkedAgentsMD(t *testing.T) {
 }
 
 func TestSyncSkipsSymlinkedClaudeMD(t *testing.T) {
+	t.Parallel()
 	root, outside := symlinkRepo(t)
 	symlink(t, "../outside/file", filepath.Join(root, "CLAUDE.md"))
 	before := snapshot(t, outside)
@@ -84,6 +86,7 @@ func TestSyncSkipsSymlinkedClaudeMD(t *testing.T) {
 }
 
 func TestSyncSkipsSymlinkedExportDir(t *testing.T) {
+	t.Parallel()
 	root, outside := symlinkRepo(t)
 	// A generated-looking SKILL.md outside that sync would "clean up" if it followed the link.
 	stale := filepath.Join(outside, "skills", "old", "SKILL.md")
@@ -132,6 +135,7 @@ func TestInitRefusesSymlinkedBlocks(t *testing.T) {
 }
 
 func TestOversizedFixturesNotIndexed(t *testing.T) {
+	t.Parallel()
 	root, _ := symlinkRepo(t)
 	src, err := fs.ReadFile(blocks.FS, "json-peek.py")
 	if err != nil {
@@ -157,6 +161,7 @@ func TestOversizedFixturesNotIndexed(t *testing.T) {
 }
 
 func TestNewerSemver(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		a, b string
 		want bool

@@ -197,6 +197,7 @@ func TestTelemetryStatusNeverSaves(t *testing.T) {
 }
 
 func TestNoNetworkDependencies(t *testing.T) {
+	t.Parallel()
 	goTool, err := exec.LookPath("go")
 	if err != nil {
 		t.Skip("go tool is not on PATH")

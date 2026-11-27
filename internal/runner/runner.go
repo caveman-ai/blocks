@@ -233,27 +233,38 @@ func resolve(p string) (string, error) {
 	p = filepath.FromSlash(p)
 	volume := filepath.VolumeName(p)
 	current := volume + string(filepath.Separator)
+	missingDepth := 0
 	for _, part := range strings.Split(p[len(volume):], string(filepath.Separator)) {
 		if part == "" || part == "." {
 			continue
 		}
 		next := filepath.Join(current, part)
-		resolved, err := filepath.EvalSymlinks(next)
-		if err == nil {
-			current = resolved
+		if part == ".." {
+			if missingDepth > 0 {
+				missingDepth--
+			}
+			current = next
 			continue
 		}
-		if !os.IsNotExist(err) {
-			return "", err
+		if missingDepth > 0 {
+			missingDepth++
+			current = next
+			continue
 		}
-		// An existing dangling link is not an ordinary missing output component.
-		// Its destination cannot be established by EvalSymlinks; never assume it stays local.
-		if _, statErr := os.Lstat(next); statErr == nil {
-			return "", err
-		} else if !os.IsNotExist(statErr) {
+		if _, statErr := os.Lstat(next); statErr != nil {
+			if os.IsNotExist(statErr) {
+				missingDepth++
+				current = next
+				continue
+			}
 			return "", statErr
 		}
-		current = next
+		resolved, err := filepath.EvalSymlinks(next)
+		if err != nil {
+			// next exists per Lstat (including a dangling or looping symlink), so fail closed.
+			return "", err
+		}
+		current = resolved
 	}
 	return current, nil
 }

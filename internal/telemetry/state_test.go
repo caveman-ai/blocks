@@ -44,6 +44,7 @@ func onState(explicit bool) State {
 }
 
 func TestDecisionPrecedence(t *testing.T) {
+	t.Parallel()
 	envs := []struct {
 		name, reason string
 		values       map[string]string
@@ -69,6 +70,7 @@ func TestDecisionPrecedence(t *testing.T) {
 		for _, choice := range []string{"absent", "default", "on", "off"} {
 			for _, cave := range []string{"absent", "on", "off"} {
 				t.Run(env.name+"/"+choice+"/caveman="+cave, func(t *testing.T) {
+					t.Parallel()
 					o := testOptions(t)
 					o.Getenv = func(k string) string { return env.values[k] }
 					if choice != "absent" {

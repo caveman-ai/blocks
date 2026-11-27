@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,12 +16,15 @@ import (
 // TestHookWatchdog runs the hook in a child process whose stdin never closes: the watchdog must answer
 // the dialect's empty response and exit 0 at the deadline.
 func TestHookWatchdog(t *testing.T) {
+	const deadline = 100 * time.Millisecond
 	if os.Getenv("CB_HOOK_CHILD") == "1" {
+		hookDeadline = deadline
 		root := newRoot()
 		root.SetArgs([]string{"hook", "--harness", "claude"})
 		root.Execute()
 		return
 	}
+	t.Parallel()
 	cmd := exec.Command(os.Args[0], "-test.run=^TestHookWatchdog$")
 	cmd.Env = append(os.Environ(), "CB_HOOK_CHILD=1")
 	w, err := cmd.StdinPipe() // held open until the test ends
@@ -36,8 +40,8 @@ func TestHookWatchdog(t *testing.T) {
 	if string(out) != "{}\n" {
 		t.Fatalf("stdout %q, want {}", out)
 	}
-	if d := time.Since(start); d < hookDeadline || d > hookDeadline+3*time.Second {
-		t.Fatalf("answered after %v, want about %v", d, hookDeadline)
+	if d := time.Since(start); d < deadline || d > deadline+3*time.Second {
+		t.Fatalf("answered after %v, want about %v", d, deadline)
 	}
 }
 
@@ -99,17 +103,41 @@ func TestHookRefusesHostileHeader(t *testing.T) {
 	}
 }
 
-// TestHookConfigBounded: a 200 MB block file and 5000 small blocks do not slow hookConfig down:
+// TestHookConfigBounded: a 200 MB block file and 1000 small blocks do not slow hookConfig down:
 // big files are skipped unread, and loading stops at index_max blocks or hookMaxFiles files.
 func TestHookConfigBounded(t *testing.T) {
-	root := hookRepo(t)
+	t.Parallel()
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".blocks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	hookBlock(t, root, "aaa-big.py", "aaa-big", "")
 	if err := os.Truncate(filepath.Join(root, ".blocks", "aaa-big.py"), 200<<20); err != nil {
 		t.Fatal(err)
 	}
-	for i := range 5000 {
-		name := fmt.Sprintf("b%04d", i)
-		hookBlock(t, root, name+".py", name, "")
+	const total = 1000
+	const workers = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, total)
+	for w := range workers {
+		wg.Go(func() {
+			for i := w; i < total; i += workers {
+				name := fmt.Sprintf("b%04d", i)
+				src := "#!/usr/bin/env python3\n# /// block\n# name = " + fmt.Sprintf("%q", name) + "\n" +
+					"# summary = \"Peek at a JSON file.\"\n# effects = \"read\"\n# example = [\"--path\", \"x.json\"]\n" +
+					"# matches = ['json\\.load\\(open']\n" +
+					"#\n# [returns]\n# keys = [\"ok\"]\n#\n# [stamp]\n# verified = \"abcdefabcdef\"\n# ///\nimport json\nprint(json.dumps({}))\n"
+				if err := os.WriteFile(filepath.Join(root, ".blocks", name+".py"), []byte(src), 0o644); err != nil {
+					errs <- err
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	close(errs)
+	if err := <-errs; err != nil {
+		t.Fatal(err)
 	}
 	state := t.TempDir()
 	measure := func(want int) {

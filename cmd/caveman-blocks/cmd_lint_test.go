@@ -35,6 +35,7 @@ func TestLintSymlinkedFixtures(t *testing.T) {
 }
 
 func TestPrintOutcome(t *testing.T) {
+	t.Parallel()
 	for o, want := range map[verify.Outcome]string{
 		{Status: verify.Fail, Name: "json-peek", Reason: "no header"}:                   "fail json-peek: no header\n",
 		{Status: verify.Pass, Name: "json-peek", Hash: "abcdefabcdef"}:                  "pass json-peek abcdefabcdef\n",

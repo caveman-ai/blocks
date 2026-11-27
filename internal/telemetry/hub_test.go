@@ -28,6 +28,7 @@ func putLegacy(t *testing.T, o Options, text string) {
 }
 
 func TestCavemanChoiceReadsCloudJSONFirst(t *testing.T) {
+	t.Parallel()
 	// A stale legacy yes never outlives a v4 opt-out.
 	o := testOptions(t)
 	putLegacy(t, o, hubConfig(true, 5, hubID))
@@ -71,6 +72,7 @@ func TestCavemanChoiceReadsCloudJSONFirst(t *testing.T) {
 }
 
 func TestHubCoveredEnrollment(t *testing.T) {
+	t.Parallel()
 	o := testOptions(t)
 	putHub(t, o, hubConfig(true, 5, hubID))
 	if d := Observe(o); d.Sendable || d.HubCovered {
@@ -133,30 +135,35 @@ func TestHubEnrollmentNeverUnderASwitch(t *testing.T) {
 
 // Of processes enrolling at once, only the one whose save wrote the default reports it (first_run).
 func TestConcurrentEnrollReportsOnce(t *testing.T) {
-	for range 10 {
-		o := testOptions(t)
-		putHub(t, o, hubConfig(true, 6, hubID))
-		var wg sync.WaitGroup
-		var mu sync.Mutex
-		enrolled := 0
-		for range 8 {
-			wg.Go(func() {
-				if d := Observe(o); d.Enrolled {
-					mu.Lock()
-					enrolled++
-					mu.Unlock()
-				}
-			})
-		}
-		wg.Wait()
-		if d := Observe(o); enrolled != 1 || d.Enrolled || !d.Sendable {
-			t.Fatalf("enrolled %d times, then %+v", enrolled, d)
-		}
+	t.Parallel()
+	for i := range 10 {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+			o := testOptions(t)
+			putHub(t, o, hubConfig(true, 6, hubID))
+			var wg sync.WaitGroup
+			var mu sync.Mutex
+			enrolled := 0
+			for range 8 {
+				wg.Go(func() {
+					if d := Observe(o); d.Enrolled {
+						mu.Lock()
+						enrolled++
+						mu.Unlock()
+					}
+				})
+			}
+			wg.Wait()
+			if d := Observe(o); enrolled != 1 || d.Enrolled || !d.Sendable {
+				t.Fatalf("enrolled %d times, then %+v", enrolled, d)
+			}
+		})
 	}
 }
 
 // An explicit off saved while an Enroll is in flight (it decided before the off) is never replaced.
 func TestExplicitOffSurvivesStaleEnroll(t *testing.T) {
+	t.Parallel()
 	o := testOptions(t)
 	putHub(t, o, hubConfig(true, 6, hubID))
 	if _, err := SaveChoice(o, false, true); err != nil {
@@ -171,25 +178,28 @@ func TestExplicitOffSurvivesStaleEnroll(t *testing.T) {
 	}
 
 	// Racing processes: whichever order, the off holds.
-	for range 10 {
-		o := testOptions(t)
-		putHub(t, o, hubConfig(true, 6, hubID))
-		var wg sync.WaitGroup
-		for range 8 {
-			wg.Go(func() { Enroll(o) })
-		}
-		wg.Go(func() {
-			if _, err := SaveChoice(o, false, true); err != nil {
-				t.Error(err)
+	for i := range 10 {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+			o := testOptions(t)
+			putHub(t, o, hubConfig(true, 6, hubID))
+			var wg sync.WaitGroup
+			for range 8 {
+				wg.Go(func() { Enroll(o) })
+			}
+			wg.Go(func() {
+				if _, err := SaveChoice(o, false, true); err != nil {
+					t.Error(err)
+				}
+			})
+			wg.Wait()
+			if d := Decide(o); d.Status != "off" || !d.State.Explicit || d.State.AnonymousID != "" {
+				t.Fatalf("racing enroll beat the off: %+v", d)
+			}
+			if _, err := os.Lstat(filepath.Join(o.Base, "telemetry.lock")); !os.IsNotExist(err) {
+				t.Fatalf("lock left behind: %v", err)
 			}
 		})
-		wg.Wait()
-		if d := Decide(o); d.Status != "off" || !d.State.Explicit || d.State.AnonymousID != "" {
-			t.Fatalf("racing enroll beat the off: %+v", d)
-		}
-		if _, err := os.Lstat(filepath.Join(o.Base, "telemetry.lock")); !os.IsNotExist(err) {
-			t.Fatalf("lock left behind: %v", err)
-		}
 	}
 }
 

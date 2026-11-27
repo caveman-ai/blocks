@@ -58,6 +58,7 @@ func usageFixture(t *testing.T, o Options) {
 }
 
 func TestRollup(t *testing.T) {
+	t.Parallel()
 	o := testOptions(t)
 	usageFixture(t, o)
 	if err := os.Symlink(filepath.Join(o.Base, "private-repo-one"), filepath.Join(o.Base, "symlink-repo")); err != nil {
@@ -94,6 +95,7 @@ func TestRollup(t *testing.T) {
 
 // Days before the day the choice was saved are never sent, whatever stats.jsonl holds.
 func TestRollupNeverBeforeDecision(t *testing.T) {
+	t.Parallel()
 	o := testOptions(t)
 	usageFixture(t, o)
 	s := onState(false)
@@ -115,6 +117,7 @@ func TestRollupNeverBeforeDecision(t *testing.T) {
 
 // A day on which any process saw an environment off switch is never sent, nor any day before it.
 func TestRollupSkipsOffDays(t *testing.T) {
+	t.Parallel()
 	o := testOptions(t)
 	usageFixture(t, o)
 	NoteOff(o.Base, time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC))
@@ -135,6 +138,7 @@ func TestRollupSkipsOffDays(t *testing.T) {
 // A choice that follows the Caveman CLI's was off until that CLI's latest decision; an explicit
 // Blocks choice does not depend on it.
 func TestRollupFollowsCavemanDecision(t *testing.T) {
+	t.Parallel()
 	o := testOptions(t)
 	usageFixture(t, o)
 	put(t, filepath.Join(o.Home, ".caveman-cloud", "config.json"),
@@ -149,6 +153,7 @@ func TestRollupFollowsCavemanDecision(t *testing.T) {
 }
 
 func TestRollupSevenDayCapAndFutureWatermark(t *testing.T) {
+	t.Parallel()
 	o := testOptions(t)
 	usageFixture(t, o) // holds a run on 2026-09-25, nine days before "today"
 	s := onState(true)
@@ -166,6 +171,7 @@ func TestRollupSevenDayCapAndFutureWatermark(t *testing.T) {
 
 // One repo whose stats cannot be read is left out; it does not stop every other repo's usage.
 func TestRollupSkipsUnreadableRepo(t *testing.T) {
+	t.Parallel()
 	o := testOptions(t)
 	usageFixture(t, o)
 	put(t, filepath.Join(o.Base, "broken-repo", "stats.jsonl"), strings.Repeat("x", 1100*1024)+"\n")

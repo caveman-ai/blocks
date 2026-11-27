@@ -27,6 +27,7 @@ func assertKept(t *testing.T, p string) {
 }
 
 func TestWriteFileSafeRefusesSymlinks(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	out := outsideFile(t)
 	if err := os.Symlink(out, filepath.Join(root, "AGENTS.md")); err != nil {
@@ -64,6 +65,7 @@ func TestWriteFileSafeRefusesSymlinks(t *testing.T) {
 }
 
 func TestInstructionFilesSkipsSymlinks(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	write(t, filepath.Join(root, "AGENTS.md"), "x")
 	if err := os.Symlink(outsideFile(t), filepath.Join(root, "CLAUDE.md")); err != nil {
@@ -75,6 +77,7 @@ func TestInstructionFilesSkipsSymlinks(t *testing.T) {
 }
 
 func TestFixtureFilesRefusesSymlinkedDirs(t *testing.T) {
+	t.Parallel()
 	home := t.TempDir()
 	write(t, filepath.Join(home, "a", "secret"), "s")
 
@@ -98,6 +101,7 @@ func TestFixtureFilesRefusesSymlinkedDirs(t *testing.T) {
 }
 
 func TestFixtureFilesSkipsFIFOAndCapsSize(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	dir := filepath.Join(root, ".blocks", "fixtures", "a")
 	write(t, filepath.Join(dir, "x.json"), "{}")

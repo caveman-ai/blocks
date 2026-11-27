@@ -11,6 +11,7 @@ import (
 )
 
 func TestReviewSymlinkParentConfinement(t *testing.T) {
+	t.Parallel()
 	root, outside := t.TempDir(), t.TempDir()
 	if err := os.Mkdir(filepath.Join(outside, "child"), 0700); err != nil {
 		t.Fatal(err)
@@ -27,6 +28,7 @@ with open(p) as f: print(json.dumps({"content": f.read()}))`, blockfile.EffectRe
 	for _, value := range []string{"link/../sentinel", root + "/link/../sentinel", "link/../missing/leaf", "link/../missing/", "link/../missing///"} {
 		for _, args := range [][]string{{"--path", value}, {"--path=" + value}, {"--pa", value}} {
 			t.Run(strings.Join(args, " "), func(t *testing.T) {
+				t.Parallel()
 				if err := CheckPaths(root, b, args); !errors.Is(err, ErrPathOutsideRepo) {
 					t.Errorf("outside path accepted: %v", err)
 				}
@@ -40,6 +42,7 @@ with open(p) as f: print(json.dumps({"content": f.read()}))`, blockfile.EffectRe
 }
 
 func TestReviewSafeParentPaths(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "data", "child"), 0700); err != nil {
 		t.Fatal(err)
@@ -56,6 +59,7 @@ func TestReviewSafeParentPaths(t *testing.T) {
 }
 
 func TestReviewMissingParentCannotHideSymlink(t *testing.T) {
+	t.Parallel()
 	root, outside := t.TempDir(), t.TempDir()
 	if err := os.WriteFile(filepath.Join(outside, "sentinel"), []byte("synthetic-outside-marker"), 0600); err != nil {
 		t.Fatal(err)
@@ -73,6 +77,7 @@ with open(sys.argv[2]) as f: print(json.dumps({"content": f.read()}))`, blockfil
 }
 
 func TestReviewUnresolvableSymlinksFailClosed(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	if err := os.Symlink("loop", filepath.Join(root, "loop")); err != nil {
 		t.Fatal(err)
@@ -89,6 +94,7 @@ func TestReviewUnresolvableSymlinksFailClosed(t *testing.T) {
 }
 
 func TestReviewParentTraversalProperties(t *testing.T) {
+	t.Parallel()
 	root, outside := t.TempDir(), t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, "inside"), 0700); err != nil {
 		t.Fatal(err)

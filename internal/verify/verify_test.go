@@ -12,6 +12,12 @@ import (
 	"github.com/caveman-ai/blocks/internal/runner"
 )
 
+func TestMain(m *testing.M) {
+	os.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	os.Exit(m.Run())
+}
+
 // Stubs for the blockfile functions: the hash is fixed and the stamp is a trailing comment line.
 const testHash = "0123456789ab"
 
@@ -56,6 +62,7 @@ print(json.dumps({"abs": os.path.isabs(p), "exists": os.path.exists(p), "path": 
 `
 
 func TestVerifyPassWritesStamp(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, ".blocks", "fixtures", "peek"), 0o755); err != nil {
 		t.Fatal(err)
@@ -83,6 +90,7 @@ func TestVerifyPassWritesStamp(t *testing.T) {
 }
 
 func TestVerifyFixturesExpansion(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	alt := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(alt, "peek"), 0o755); err != nil {
@@ -106,6 +114,7 @@ func TestVerifyFixturesExpansion(t *testing.T) {
 }
 
 func TestVerifyFailures(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, body, reason string
 	}{
@@ -118,6 +127,7 @@ func TestVerifyFailures(t *testing.T) {
 		{"keys", `print('{"other": 1}')`, "answer lacks returns keys: k"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			root := t.TempDir()
 			b := fakeBlock(t, root, tc.name, tc.body, "k")
 			b.Header.Stamp = &blockfile.Stamp{Verified: "old000000000"}
@@ -133,7 +143,7 @@ func TestVerifyFailures(t *testing.T) {
 }
 
 func TestVerifyCheckNeverWrites(t *testing.T) {
-	root := t.TempDir()
+	t.Parallel()
 	const ok = `print('{"k": 1}')`
 	opts := stubs
 	opts.Check = true
@@ -150,19 +160,24 @@ func TestVerifyCheckNeverWrites(t *testing.T) {
 		{"quarantined", ok, &blockfile.Stamp{Verified: testHash, State: "quarantined"}, Fail, "committed quarantined block"},
 		{"failing", `print("x")`, &blockfile.Stamp{Verified: testHash}, Fail, "stdout is not"},
 	} {
-		b := fakeBlock(t, root, tc.name, tc.body, "k")
-		b.Header.Stamp = tc.stamp
-		o := Verify(root, b, nil, nil, opts)
-		if o.Status != tc.status || !strings.HasPrefix(o.Reason, tc.reason) {
-			t.Errorf("%s: %+v", tc.name, o)
-		}
-		if read(t, b.Path) != tc.body {
-			t.Errorf("%s: check mode wrote the file", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			b := fakeBlock(t, root, tc.name, tc.body, "k")
+			b.Header.Stamp = tc.stamp
+			o := Verify(root, b, nil, nil, opts)
+			if o.Status != tc.status || !strings.HasPrefix(o.Reason, tc.reason) {
+				t.Errorf("%s: %+v", tc.name, o)
+			}
+			if read(t, b.Path) != tc.body {
+				t.Errorf("%s: check mode wrote the file", tc.name)
+			}
+		})
 	}
 }
 
 func TestVerifySkips(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	b := fakeBlock(t, root, "fetch", `print('{"k": 1}')`, "k")
 	b.Header.Effects = blockfile.EffectNetwork
@@ -190,6 +205,7 @@ func TestVerifySkips(t *testing.T) {
 // TestVerifyCheckJudgesStampBeforeSkip: in CI a pull request cannot land a hand-stamped or
 // quarantined block whose effect or tool is unavailable as a passing skip (docs/CI.md).
 func TestVerifyCheckJudgesStampBeforeSkip(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	b := fakeBlock(t, root, "fetch", `print('{"k": 1}')`, "k")
 	b.Header.Effects = blockfile.EffectNetwork
@@ -217,8 +233,6 @@ func gitRepo(t *testing.T) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
 	}
-	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
-	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	dir := t.TempDir()
 	git(t, dir, "init", "-q", "-b", "main")
 	return dir
@@ -245,6 +259,7 @@ func put(t *testing.T, root, rel, content string) {
 }
 
 func TestSelect(t *testing.T) {
+	t.Parallel()
 	root := gitRepo(t)
 	for _, n := range []string{"a", "b", "c", "d"} {
 		put(t, root, ".blocks/"+n+".py", n)
