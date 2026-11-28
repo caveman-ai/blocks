@@ -41,6 +41,11 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: { python-version: '3.12' }
       - if: matrix.part == 'blocks'
+        run: |
+          which python3; python3 -VV
+          for i in 1 2 3; do /usr/bin/time -p python3 -c pass; done
+          /usr/bin/time -p python3 -m unittest -v --durations 0 blocks/tests/test_blocks.py
+      - if: matrix.part == 'blocks'
         run: make blocks-test
       - if: matrix.part == 'blocks'
         run: make blocks-verify
