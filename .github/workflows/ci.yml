@@ -67,6 +67,8 @@ jobs:
       # old single job, since as its own job on a just-booted macOS runner it measured slower.
       - if: matrix.part == 'go'
         run: make e2e
+      - if: matrix.part == 'go' && runner.os == 'macOS'
+        run: top -l 2 -o cpu -n 10 -stats pid,command,cpu | tail -14
       - if: matrix.part == 'go'
         run: make bench-hook
 
