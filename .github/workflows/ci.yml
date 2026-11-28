@@ -26,6 +26,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
+      # A fresh macOS runner spends its first minutes indexing the disk with Spotlight, which competes
+      # with the process-spawn timing that bench-hook measures. CI never searches it.
+      - if: runner.os == 'macOS'
+        run: sudo mdutil -a -i off
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
