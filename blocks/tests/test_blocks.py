@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import socketserver
 import subprocess
 import sys
 import tempfile
@@ -59,6 +60,14 @@ def run(name, args, out_dir):
         [sys.executable, os.path.join(HERE, f"{name}.py"), *args],
         capture_output=True, text=True, env=env, timeout=60, check=False, cwd=os.path.dirname(HERE),  # runner cwd: repo root
     )
+
+
+class LoopbackHTTPServer(http.server.ThreadingHTTPServer):
+    """HTTPServer.server_bind reverse-resolves its address with getfqdn, which takes ~35 s on macOS CI runners."""
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 
 class Blocks(unittest.TestCase):
@@ -165,7 +174,7 @@ class Blocks(unittest.TestCase):
 
     def test_http_json_over_http(self):
         handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=os.path.join(FIXTURES, "http-json"))
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        server = LoopbackHTTPServer(("127.0.0.1", 0), handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
