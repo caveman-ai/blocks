@@ -43,7 +43,7 @@ jobs:
       - if: matrix.part == 'blocks'
         run: |
           which python3; python3 -VV
-          for i in 1 2 3; do /usr/bin/time -p python3 -c pass; done
+          python3 -c 'import socket,time; t=time.time(); socket.getfqdn("127.0.0.1"); print("getfqdn", time.time()-t)'
           /usr/bin/time -p python3 -m unittest -v --durations 0 blocks/tests/test_blocks.py
       - if: matrix.part == 'blocks'
         run: make blocks-test
