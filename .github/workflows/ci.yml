@@ -2,35 +2,66 @@ name: ci
 on:
   push: { branches: [main] }
   pull_request:
+
+permissions:
+  contents: read
+
+# A new push to a pull request supersedes the run in flight; pushes to main always finish.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  test:
+  # The old single job ran every step in series per OS. The same steps now run as three parallel
+  # parts per OS, so the slowest part, not the sum, sets the wall clock. Every step still runs on
+  # both Linux and macOS.
+  unix:
+    name: ${{ matrix.part }} (${{ matrix.os }})
     strategy:
-      matrix: { os: [ubuntu-latest, macos-latest] }
+      fail-fast: false
+      matrix:
+        # Linux on Blacksmith; macOS stays on GitHub-hosted runners.
+        os: [blacksmith-4vcpu-ubuntu-2404, macos-latest]
+        part: [go, blocks, e2e]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        # verify --policy-ref origin/main needs main; a PR checkout fetches only the PR ref.
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # verify --policy-ref origin/main needs main; a PR checkout fetches only the PR ref.
+          fetch-depth: ${{ matrix.part == 'blocks' && '0' || '1' }}  # quoted: a bare 0 is falsy
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with: { go-version-file: go.mod }
-      - run: make check-instructions
-      - run: make lint
-      - run: make test
-      - run: make build
-      - uses: actions/setup-python@v5
+
+      - if: matrix.part == 'go'
+        run: make check-instructions lint test
+
+      - if: matrix.part == 'blocks'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: { python-version: '3.12' }
-      - run: make blocks-test
-      - run: make blocks-verify
-      - run: go run ./cmd/caveman-blocks lint .blocks && go run ./cmd/caveman-blocks verify --check --all --policy-ref origin/main && go run ./cmd/caveman-blocks sync --check
-      - run: make e2e
-      - run: make bench-hook
+      - if: matrix.part == 'blocks'
+        run: make blocks-test
+      - if: matrix.part == 'blocks'
+        run: make blocks-verify
+      - if: matrix.part == 'blocks'
+        run: go run ./cmd/caveman-blocks lint .blocks && go run ./cmd/caveman-blocks verify --check --all --policy-ref origin/main && go run ./cmd/caveman-blocks sync --check
+
+      # Both targets depend on `make build`, so the release-flag build is still checked here.
+      - if: matrix.part == 'e2e'
+        run: make e2e
+      - if: matrix.part == 'e2e'
+        run: make bench-hook
+
   # The Go tests and make targets assume unix paths and sh; on Windows the binary is built, vetted and
   # driven through hooks install, status and uninstall in Git Bash, the shell Claude Code runs hooks in.
   windows:
-    runs-on: windows-latest
+    runs-on: blacksmith-8vcpu-windows-2025
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with: { go-version-file: go.mod }
       - run: go vet ./...
       - run: go test ./internal/hook/install ./internal/hook -run "TestMarker|TestProfile"
@@ -38,3 +69,18 @@ jobs:
       - run: go build -o bin/caveman-blocks.exe ./cmd/caveman-blocks
       - run: scripts/smoke-hooks.sh "$PWD/bin/caveman-blocks.exe"
         shell: bash
+
+  # One stable check name that means every job above passed, for a ruleset to require.
+  ci:
+    if: always()
+    needs: [unix, windows]
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: All CI jobs passed
+        env:
+          UNIX: ${{ needs.unix.result }}
+          WINDOWS: ${{ needs.windows.result }}
+        run: |
+          echo "unix=$UNIX windows=$WINDOWS"
+          test "$UNIX" = success && test "$WINDOWS" = success
