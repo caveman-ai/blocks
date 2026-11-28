@@ -41,11 +41,6 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: { python-version: '3.12' }
       - if: matrix.part == 'blocks'
-        run: |
-          which python3; python3 -VV
-          python3 -c 'import socket,time; t=time.time(); socket.getfqdn("127.0.0.1"); print("getfqdn", time.time()-t)'
-          /usr/bin/time -p python3 -m unittest -v --durations 0 blocks/tests/test_blocks.py
-      - if: matrix.part == 'blocks'
         run: make blocks-test
       - if: matrix.part == 'blocks'
         run: make blocks-verify
@@ -75,17 +70,3 @@ jobs:
       - run: scripts/smoke-hooks.sh "$PWD/bin/caveman-blocks.exe"
         shell: bash
 
-  # One stable check name that means every job above passed, for a ruleset to require.
-  ci:
-    if: always()
-    needs: [unix, windows]
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 5
-    steps:
-      - name: All CI jobs passed
-        env:
-          UNIX: ${{ needs.unix.result }}
-          WINDOWS: ${{ needs.windows.result }}
-        run: |
-          echo "unix=$UNIX windows=$WINDOWS"
-          test "$UNIX" = success && test "$WINDOWS" = success
